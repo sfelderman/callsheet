@@ -2,7 +2,7 @@
 # Copy to config.yaml and customize for your household.
 
 # Claude model. Sonnet = fast + cheap (~$0.02/day). Opus = deeper insights (~$0.15/day).
-model: claude-sonnet-4-20250514
+model: claude-sonnet-4-6
 
 # CUPS printer name. Run `lpstat -p -d` to find yours. Leave empty for --preview only.
 printer: ""
