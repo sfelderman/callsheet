@@ -19,16 +19,32 @@ interface CalendarEvent {
   end?: { dateTime?: string; date?: string };
   location?: string;
   description?: string;
+  colorId?: string;
 }
 
 interface CalendarAccount extends GoogleAccount {
   calendar_ids?: string[];
 }
 
+// Google Calendar color IDs → names. colorId 7 = "Blueberry/purple" (travel convention).
+const COLOR_NAMES: Record<string, string> = {
+  '1': 'lavender',
+  '2': 'sage',
+  '3': 'grape',
+  '4': 'flamingo',
+  '5': 'banana',
+  '6': 'tangerine',
+  '7': 'peacock',
+  '8': 'graphite',
+  '9': 'blueberry',
+  '10': 'basil',
+  '11': 'tomato',
+};
+
 function simplifyEvent(e: CalendarEvent) {
   const start = e.start ?? {};
   const end = e.end ?? {};
-  return {
+  const result: Record<string, unknown> = {
     summary: e.summary ?? '(no title)',
     start: start.dateTime ?? start.date ?? '',
     end: end.dateTime ?? end.date ?? '',
@@ -36,6 +52,8 @@ function simplifyEvent(e: CalendarEvent) {
     description: (e.description ?? '').slice(0, 200),
     allDay: 'date' in start && !('dateTime' in start),
   };
+  if (e.colorId) result.color = COLOR_NAMES[e.colorId] ?? e.colorId;
+  return result;
 }
 
 async function fetchAccountEvents(
