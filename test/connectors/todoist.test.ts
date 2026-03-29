@@ -51,6 +51,26 @@ describe('todoist connector', () => {
     next_cursor: null,
   };
 
+  const mockTasksForFiltering = {
+    results: [
+      { id: 't1', content: 'Work task p4', project_id: 'proj1', priority: 4, due: null },
+      { id: 't2', content: 'Work task p2', project_id: 'proj1', priority: 2, due: null },
+      { id: 't3', content: 'Shopping task', project_id: 'proj3', priority: 3, due: null },
+      { id: 't4', content: 'Work task p1', project_id: 'proj1', priority: 1, due: null },
+      { id: 't5', content: 'Inbox no-due', project_id: 'proj2', priority: 2, due: null },
+    ],
+    next_cursor: null,
+  };
+
+  const mockProjectsWithShopping = {
+    results: [
+      { id: 'proj1', name: 'Work', inbox_project: false },
+      { id: 'proj2', name: 'Inbox', inbox_project: true },
+      { id: 'proj3', name: 'Shopping', inbox_project: false },
+    ],
+    next_cursor: null,
+  };
+
   const mockCompleted = {
     items: [
       {
@@ -147,6 +167,94 @@ describe('todoist connector', () => {
       expect(accounts).toHaveLength(2);
 
       delete process.env.TODOIST_TOKEN_PARTNER;
+    });
+  });
+
+  describe('backlog filtering', () => {
+    function setupFilterMock() {
+      process.env.TODOIST_TOKEN_GEORGE = 'test-token-123';
+      globalThis.fetch = jest.fn(((url: string | URL | Request) => {
+        const urlStr = url.toString();
+        if (urlStr.includes('/projects')) {
+          return Promise.resolve({ ok: true, json: () => Promise.resolve(mockProjectsWithShopping) });
+        }
+        if (urlStr.includes('/completed/')) {
+          return Promise.resolve({ ok: true, json: () => Promise.resolve({ items: [] }) });
+        }
+        if (urlStr.includes('/tasks')) {
+          return Promise.resolve({ ok: true, json: () => Promise.resolve(mockTasksForFiltering) });
+        }
+        return Promise.resolve({ ok: false, status: 404 });
+      }) as typeof fetch);
+    }
+
+    it('should limit backlog to backlog_limit', async () => {
+      setupFilterMock();
+      const conn = create({
+        enabled: true,
+        backlog_limit: 2,
+        accounts: [{ name: 'George', token_env: 'TODOIST_TOKEN_GEORGE' }],
+      });
+      const result = await conn.fetch();
+      const accounts = result.data.accounts as Record<string, unknown>[];
+      expect((accounts[0].backlog as unknown[]).length).toBe(2);
+    });
+
+    it('should exclude projects in backlog_projects_exclude', async () => {
+      setupFilterMock();
+      const conn = create({
+        enabled: true,
+        backlog_projects_exclude: ['Shopping'],
+        accounts: [{ name: 'George', token_env: 'TODOIST_TOKEN_GEORGE' }],
+      });
+      const result = await conn.fetch();
+      const accounts = result.data.accounts as Record<string, unknown>[];
+      const backlog = accounts[0].backlog as { project: string }[];
+      expect(backlog.every((t) => t.project !== 'Shopping')).toBe(true);
+    });
+
+    it('should filter backlog by backlog_min_priority', async () => {
+      setupFilterMock();
+      const conn = create({
+        enabled: true,
+        backlog_min_priority: 2,
+        accounts: [{ name: 'George', token_env: 'TODOIST_TOKEN_GEORGE' }],
+      });
+      const result = await conn.fetch();
+      const accounts = result.data.accounts as Record<string, unknown>[];
+      const backlog = accounts[0].backlog as { priority: number }[];
+      expect(backlog.every((t) => t.priority >= 2)).toBe(true);
+    });
+
+    it('should sort backlog by priority descending before limiting', async () => {
+      setupFilterMock();
+      const conn = create({
+        enabled: true,
+        backlog_limit: 1,
+        accounts: [{ name: 'George', token_env: 'TODOIST_TOKEN_GEORGE' }],
+      });
+      const result = await conn.fetch();
+      const accounts = result.data.accounts as Record<string, unknown>[];
+      const backlog = accounts[0].backlog as { priority: number }[];
+      // With limit=1, should keep the highest-priority task (p4)
+      expect(backlog[0].priority).toBe(4);
+    });
+
+    it('should apply all filters together', async () => {
+      setupFilterMock();
+      const conn = create({
+        enabled: true,
+        backlog_limit: 1,
+        backlog_projects_exclude: ['Shopping'],
+        backlog_min_priority: 2,
+        accounts: [{ name: 'George', token_env: 'TODOIST_TOKEN_GEORGE' }],
+      });
+      const result = await conn.fetch();
+      const accounts = result.data.accounts as Record<string, unknown>[];
+      const backlog = accounts[0].backlog as { priority: number; project: string }[];
+      expect(backlog.length).toBe(1);
+      expect(backlog[0].project).not.toBe('Shopping');
+      expect(backlog[0].priority).toBeGreaterThanOrEqual(2);
     });
   });
 

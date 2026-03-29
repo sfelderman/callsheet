@@ -31,7 +31,17 @@ interface PaginatedResponse<T> {
   next_cursor: string | null;
 }
 
-async function fetchAccount(token: string, label: string): Promise<Record<string, unknown>> {
+interface BacklogConfig {
+  limit?: number;
+  excludeProjects?: string[];
+  minPriority?: number;
+}
+
+async function fetchAccount(
+  token: string,
+  label: string,
+  backlog: BacklogConfig = {},
+): Promise<Record<string, unknown>> {
   const headers = { Authorization: `Bearer ${token}` };
 
   async function get<T = TodoistTask>(
@@ -118,7 +128,20 @@ async function fetchAccount(token: string, label: string): Promise<Record<string
     sevenDays.setDate(sevenDays.getDate() + 7);
     return t.due.date <= sevenDays.toISOString().slice(0, 10);
   });
-  const noDueTasks = allTasks.filter((t) => !t.due && t.project_id !== inboxId);
+  let noDueTasks = allTasks.filter((t) => !t.due && t.project_id !== inboxId);
+
+  // Apply backlog filters in sequence: exclude → min priority → sort → limit
+  if (backlog.excludeProjects?.length) {
+    const excluded = new Set(backlog.excludeProjects);
+    noDueTasks = noDueTasks.filter((t) => !excluded.has(projects[t.project_id ?? ''] ?? ''));
+  }
+  if (backlog.minPriority !== undefined) {
+    noDueTasks = noDueTasks.filter((t) => (t.priority ?? 1) >= backlog.minPriority!);
+  }
+  noDueTasks.sort((a, b) => (b.priority ?? 1) - (a.priority ?? 1));
+  if (backlog.limit !== undefined) {
+    noDueTasks = noDueTasks.slice(0, backlog.limit);
+  }
 
   return {
     person: label,
@@ -147,13 +170,19 @@ export function create(config: ConnectorConfig): Connector {
       }[];
       const results: Record<string, unknown>[] = [];
 
+      const backlog: BacklogConfig = {
+        limit: config.backlog_limit as number | undefined,
+        excludeProjects: config.backlog_projects_exclude as string[] | undefined,
+        minPriority: config.backlog_min_priority as number | undefined,
+      };
+
       for (const acct of accounts) {
         const token = process.env[acct.token_env] ?? '';
         if (!token) {
           console.log(`  Warning: ${acct.token_env} not set, skipping ${acct.name}`);
           continue;
         }
-        results.push(await fetchAccount(token, acct.name));
+        results.push(await fetchAccount(token, acct.name, backlog));
       }
 
       const totalToday = results.reduce((sum, r) => sum + (r.today as unknown[]).length, 0);
