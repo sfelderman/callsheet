@@ -53,6 +53,15 @@ This project uses **Yarn 4** (Berry) with `node-modules` linker. Do not use npm.
 
 - **CI/CD** (`ci.yml`) — single unified pipeline on every push to main: lint → test → release. The release job only runs if lint and test pass. Preview builds per commit, stable on version bump.
 
+## Data Sources
+
+### Google Keep (google-keep connector)
+The Keep connector reads from a JSON file produced by an external scraper:
+- **Scraper project**: `~/projects/playwright-browser-controller/`
+- **Output contract**: [`docs/keep-data-contract.md`](docs/keep-data-contract.md)
+- **Run scraper**: `cd ~/projects/playwright-browser-controller/local-service && npm run scrape:keep:callsheet`
+- The connector auto-runs the scraper on each `callsheet` invocation; no manual run needed in normal use
+
 ## Key Patterns
 
 - Connectors return `ConnectorResult` with `source`, `description`, `data`, `priorityHint`

@@ -161,7 +161,7 @@ describe('gmail connector', () => {
       expect(email.snippet).toBe('Your invoice is ready');
     });
 
-    it('should filter labels to UNREAD, IMPORTANT, TRASH, and user labels', async () => {
+    it('should filter labels to TRASH and user labels only (not UNREAD/IMPORTANT)', async () => {
       setupCredsAndToken();
       setupGmailMocks(
         [
@@ -185,8 +185,8 @@ describe('gmail connector', () => {
 
       const accounts = result.data.accounts as { emails: { labels: string[] }[] }[];
       const labels = accounts[0].emails[0].labels;
-      expect(labels).toContain('UNREAD');
-      expect(labels).toContain('IMPORTANT');
+      expect(labels).not.toContain('UNREAD');
+      expect(labels).not.toContain('IMPORTANT');
       expect(labels).toContain('My Custom Label');
       expect(labels).not.toContain('INBOX');
       expect(labels).not.toContain('CATEGORY_PROMOTIONS');
@@ -238,7 +238,7 @@ describe('gmail connector', () => {
       expect(accounts[1].person).toBe('Work');
     });
 
-    it('should report user labels per account', async () => {
+    it('should not include userLabels in account data', async () => {
       setupCredsAndToken();
       setupGmailMocks(
         [],
@@ -253,10 +253,8 @@ describe('gmail connector', () => {
       const conn = create({ enabled: true });
       const result = await conn.fetch();
 
-      const accounts = result.data.accounts as { userLabels: string[] }[];
-      expect(accounts[0].userLabels).toContain('Travel');
-      expect(accounts[0].userLabels).toContain('Receipts');
-      expect(accounts[0].userLabels).not.toContain('INBOX');
+      const accounts = result.data.accounts as Record<string, unknown>[];
+      expect(accounts[0].userLabels).toBeUndefined();
     });
 
     it('should include description with account/email/unread counts', async () => {
@@ -335,7 +333,7 @@ describe('gmail connector', () => {
         enabled: true,
         query: 'is:unread',
         max_messages: 50,
-        trash_max_age: '3d',
+        resolution_days: 3,
         pinned_labels: ['Travel'],
       });
 

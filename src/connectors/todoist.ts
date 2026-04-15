@@ -101,13 +101,11 @@ async function fetchAccount(
 
   function simplify(t: TodoistTask) {
     return {
-      id: t.id,
       content: t.content,
-      description: (t.description ?? '').slice(0, 200),
+      ...(t.description ? { description: t.description.slice(0, 200) } : {}),
       project: projects[t.project_id ?? ''] ?? '',
       priority: t.priority ?? 1,
-      dueDate: t.due?.date ?? '',
-      dueString: t.due?.string ?? '',
+      ...(t.due ? { dueString: t.due.string } : {}),
       isRecurring: t.due?.is_recurring ?? false,
     };
   }
@@ -150,10 +148,9 @@ async function fetchAccount(
     upcoming: upcomingTasks.map(simplify),
     backlog: noDueTasks.map(simplify),
     recently_completed: recentlyCompleted.map((t) => ({
-      id: t.id,
       content: t.content,
       project: projects[t.project_id ?? ''] ?? '',
-      completed_at: t.completed_at,
+      completed_at: t.completed_at.slice(0, 10),
     })),
   };
 }

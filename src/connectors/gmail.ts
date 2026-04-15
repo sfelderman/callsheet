@@ -12,6 +12,19 @@ import {
 
 const SCOPES = ['https://www.googleapis.com/auth/gmail.readonly'];
 
+function decodeHtmlEntities(s: string): string {
+  return s
+    .replace(/&amp;/g, '&')
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"');
+}
+
+function cleanSnippet(s: string): string {
+  return decodeHtmlEntities(s).replace(/[\u200b\u200c\u200d\u00a0\ufeff]/g, '');
+}
+
 /** Fetch a list of message objects from a Gmail query, deduplicating by ID. */
 async function fetchMessages(
   gmail: ReturnType<typeof google.gmail>,
@@ -19,6 +32,7 @@ async function fetchMessages(
   maxResults: number,
   seenIds: Set<string>,
   labelMap: Map<string, string>,
+  forceResolved = false,
 ): Promise<
   {
     from: string;
@@ -26,7 +40,7 @@ async function fetchMessages(
     date: string;
     snippet: string;
     labels: string[];
-    trashed: boolean;
+    resolved?: boolean;
   }[]
 > {
   const listResult = await gmail.users.messages.list({
@@ -54,28 +68,27 @@ async function fetchMessages(
       headers[h.name!.toLowerCase()] = h.value!;
     }
 
-    // Resolve label IDs to readable names, keep only user + UNREAD/IMPORTANT
+    // Resolve label IDs to readable names, keep only user labels + TRASH
     const rawLabels = msg.data.labelIds ?? [];
     const readableLabels = rawLabels
       .map((id) => labelMap.get(id) ?? id)
       .filter(
         (name) =>
-          name === 'UNREAD' ||
-          name === 'IMPORTANT' ||
           name === 'TRASH' ||
           (!name.startsWith('CATEGORY_') &&
-            !['INBOX', 'SENT', 'CHAT', 'DRAFT', 'SPAM', 'TRASH', 'STARRED', 'YELLOW_STAR'].includes(
+            !['INBOX', 'SENT', 'CHAT', 'DRAFT', 'SPAM', 'TRASH', 'STARRED', 'YELLOW_STAR', 'UNREAD', 'IMPORTANT'].includes(
               name,
             )),
       );
 
+    const resolved = forceResolved || rawLabels.includes('TRASH');
     emails.push({
       from: headers.from ?? '',
       subject: headers.subject ?? '',
       date: headers.date ?? '',
-      snippet: msg.data.snippet ?? '',
+      snippet: cleanSnippet(msg.data.snippet ?? ''),
       labels: readableLabels,
-      trashed: rawLabels.includes('TRASH'),
+      ...(resolved ? { resolved: true } : {}),
     });
   }
 
@@ -89,7 +102,7 @@ async function fetchAccount(
   query: string,
   maxMessages: number,
   credsFile?: string,
-  trashMaxAge?: string,
+  resolutionDays?: number,
   pinnedLabels?: string[],
 ): Promise<Record<string, unknown>> {
   const oauth2 = getCredentials(credsDir, tokenFile, credsFile);
@@ -113,10 +126,13 @@ async function fetchAccount(
   const mainQuery = `${query} -in:trash`;
   const mainEmails = await fetchMessages(gmail, mainQuery, maxMessages, seenIds, labelMap);
 
-  // Phase 2: Trash emails with a shorter time window (resolution signals only)
-  const effectiveTrashAge = trashMaxAge ?? '1d';
-  const trashQuery = `in:trash newer_than:${effectiveTrashAge}`;
-  const trashEmails = await fetchMessages(gmail, trashQuery, 15, seenIds, labelMap);
+  // Phase 2: Resolution signals — recently trashed OR recently archived (read + removed from inbox).
+  // Both signal "Sean already handled this." TODO: snoozed emails (-is:snoozed) may false-positive here.
+  const effectiveDays = resolutionDays ?? 1;
+  const trashQuery = `in:trash newer_than:${effectiveDays}d`;
+  const archivedQuery = `is:read -in:inbox -in:trash newer_than:${effectiveDays}d`;
+  const trashEmails = await fetchMessages(gmail, trashQuery, 15, seenIds, labelMap, true);
+  const archivedEmails = await fetchMessages(gmail, archivedQuery, 15, seenIds, labelMap, true);
 
   // Phase 3: Pinned labels — important folders fetched with a longer window
   // These are labels like "Travel Confirmations" where older emails still matter.
@@ -131,7 +147,7 @@ async function fetchAccount(
     }
   }
 
-  const emails = [...mainEmails, ...trashEmails, ...pinnedEmails];
+  const emails = [...mainEmails, ...trashEmails, ...archivedEmails, ...pinnedEmails];
 
   // Get inbox unread count — must include in:inbox, otherwise Gmail counts
   // unread across all labels (archived, labeled, etc.)
@@ -141,7 +157,6 @@ async function fetchAccount(
   return {
     person: label,
     inboxUnread: unreadTotal,
-    userLabels,
     emails,
   };
 }
@@ -154,9 +169,9 @@ export function create(config: ConnectorConfig): Connector {
     async fetch(): Promise<ConnectorResult> {
       const credsDir = (config.credentials_dir as string) ?? 'secrets';
       const query =
-        (config.query as string) ?? 'newer_than:2d -category:promotions -category:social';
+        (config.query as string) ?? 'is:unread is:important in:inbox';
       const maxMessages = (config.max_messages as number) ?? 25;
-      const trashMaxAge = config.trash_max_age as string | undefined;
+      const resolutionDays = (config.resolution_days as number | undefined) ?? 1;
       const pinnedLabels = config.pinned_labels as string[] | undefined;
 
       const accounts = (config.accounts as GoogleAccount[] | undefined) ?? [];
@@ -176,7 +191,7 @@ export function create(config: ConnectorConfig): Connector {
               query,
               maxMessages,
               resolveCredsFile(acct, config),
-              trashMaxAge,
+              resolutionDays,
               pinnedLabels,
             ),
           );
@@ -191,7 +206,7 @@ export function create(config: ConnectorConfig): Connector {
             query,
             maxMessages,
             undefined,
-            trashMaxAge,
+            resolutionDays,
             pinnedLabels,
           ),
         ];
@@ -208,11 +223,11 @@ export function create(config: ConnectorConfig): Connector {
         source: 'gmail',
         description:
           `Gmail: ${results.length} account(s), ${totalEmails} recent emails (query: '${query}'), ${totalUnread} total inbox unread. ` +
-          'Emails are fetched in phases: (1) non-trash emails matching the query, (2) recently trashed emails as resolution signals, ' +
+          'Emails are fetched in phases: (1) action items matching the query, (2) recently resolved emails (trashed or archived) as resolution signals, ' +
           `(3) pinned label emails for important reference data.${pinnedNote} ` +
-          'Each account has: person name, inboxUnread count, userLabels (their custom label names), and email list. ' +
-          'Each email has human-readable labels — use these to understand context. ' +
-          'Trashed emails (trashed: true) indicate the person already handled that item — use as resolution signals, not action items. ' +
+          'Each account has: person name, inboxUnread count, and email list. ' +
+          'Each email has human-readable user labels — use these to understand context. ' +
+          'Resolved emails (resolved: true) mean Sean already handled this item — use as resolution signals only, never as action items. ' +
           'Look for: billing/payment notifications (flag if action needed next day), ' +
           'trial/subscription signups (warn about upcoming charges), ' +
           'shipping confirmations (extract delivery dates), ' +
@@ -267,9 +282,9 @@ export function validate(config: ConnectorConfig): Check[] {
     );
   }
 
-  checks.push([INFO, `Query: ${config.query ?? '(default)'}`, '']);
+  checks.push([INFO, `Query: ${config.query ?? '(default: is:unread is:important in:inbox)'}`, '']);
   checks.push([INFO, `Max messages per account: ${config.max_messages ?? 25}`, '']);
-  checks.push([INFO, `Trash max age: ${config.trash_max_age ?? '1d (default)'}`, '']);
+  checks.push([INFO, `Resolution signals window: ${config.resolution_days ?? 1}d (trash + archived)`, '']);
   const pinned = config.pinned_labels as string[] | undefined;
   checks.push([INFO, `Pinned labels: ${pinned?.length ? pinned.join(', ') : '(none)'}`, '']);
 

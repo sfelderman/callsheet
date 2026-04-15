@@ -41,7 +41,8 @@ program
   .option('--show-data', 'Dump raw data and exit')
   .option('--list-connectors', 'List available connectors')
   .option('--test [connectors...]', 'Test connectors')
-  .option('--review [date]', 'Review a brief for quality issues (default: today)');
+  .option('--review [date]', 'Review a brief for quality issues (default: today)')
+  .option('--triage [connectors...]', 'Fetch connectors, classify for triage, output markdown');
 
 program.parse();
 
@@ -53,6 +54,7 @@ const opts = program.opts<{
   listConnectors?: boolean;
   test?: string[] | true;
   review?: string | true;
+  triage?: string[] | true;
 }>();
 
 async function main() {
@@ -147,6 +149,40 @@ async function main() {
       }
       console.log("\nThese have been saved and will be fed into tomorrow's prompt.");
     }
+    return;
+  }
+
+  // --- Triage mode ---
+  if (opts.triage !== undefined) {
+    const Anthropic = (await import('@anthropic-ai/sdk')).default;
+    const { classifyForTriage } = await import('./triage.js');
+
+    const apiKey = process.env.ANTHROPIC_API_KEY ?? '';
+    if (!apiKey) {
+      console.error('ERROR: ANTHROPIC_API_KEY not set.');
+      process.exit(1);
+    }
+
+    const only = Array.isArray(opts.triage) && opts.triage.length > 0 ? opts.triage : undefined;
+    const outputDir = config.output_dir ?? 'output';
+    const client = new Anthropic({ apiKey });
+
+    console.log('Fetching connector data...');
+    const { results, issues } = await fetchAll(config, only);
+
+    for (const issue of issues) {
+      console.error(`  Warning: ${issue.connector}: ${issue.error}`);
+    }
+
+    if (!results.length) {
+      console.error('No connector data fetched. Check connector configuration.');
+      process.exit(1);
+    }
+
+    console.log('Classifying with Haiku...');
+    const markdown = await classifyForTriage(client, results, config, outputDir);
+
+    console.log('\n' + markdown);
     return;
   }
 

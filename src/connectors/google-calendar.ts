@@ -44,14 +44,17 @@ const COLOR_NAMES: Record<string, string> = {
 function simplifyEvent(e: CalendarEvent) {
   const start = e.start ?? {};
   const end = e.end ?? {};
+  const rawDesc = (e.description ?? '').includes('automatically created events')
+    ? ''
+    : (e.description ?? '').slice(0, 200);
   const result: Record<string, unknown> = {
     summary: e.summary ?? '(no title)',
     start: start.dateTime ?? start.date ?? '',
     end: end.dateTime ?? end.date ?? '',
-    location: e.location ?? '',
-    description: (e.description ?? '').slice(0, 200),
     allDay: 'date' in start && !('dateTime' in start),
   };
+  if (e.location) result.location = e.location;
+  if (rawDesc) result.description = rawDesc;
   if (e.colorId) result.color = COLOR_NAMES[e.colorId] ?? e.colorId;
   return result;
 }

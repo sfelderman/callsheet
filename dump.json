@@ -1,0 +1,559 @@
+  Fetching google_calendar...
+  Warning: Failed to fetch calendar primary: Error: invalid_grant
+  Warning: Failed to fetch calendar primary: Error: invalid_grant
+  ✓ google_calendar
+  Fetching todoist...
+  ✓ todoist
+  Fetching gmail...
+  ✗ gmail: invalid_grant
+  Fetching weather...
+  ✓ weather
+  Fetching google_keep...
+  ✓ google_keep
+[
+  {
+    "source": "google_calendar",
+    "description": "Google Calendar events. 'today' has 0 events. 'upcoming' has 0 events over the next 7 days. Use today's events for the schedule section. Use upcoming for the lookahead section — highlight things that need preparation.",
+    "priority": "high",
+    "data": {
+      "today": [],
+      "upcoming": []
+    }
+  },
+  {
+    "source": "todoist",
+    "description": "Todoist data for 1 account(s). 21 tasks due today/overdue, 0 inbox items, 25 backlog items, 9 recently completed. Each account has 'today' (due today + overdue), 'inbox' (unsorted items in Inbox project), 'upcoming' (next 7 days), 'backlog' (tasks with no due date across all projects), and 'recently_completed' (tasks finished in the last 3 days — use these to recognize resolved items and do NOT re-flag completed tasks from memory). Priority 4 = highest (p1 in UI). Inbox items are not necessarily actionable today — they're things to be aware of or process.",
+    "priority": "high",
+    "data": {
+      "accounts": [
+        {
+          "person": "Sean",
+          "today": [
+            {
+              "content": "Fix oven - not turning on",
+              "description": "Oven stopped turning on. Impacts ability to cook.\nSteps:\n1. Diagnose — check if it's electric or gas issue, check breaker/pilot\n2. If not simple fix, look up repair service or landlord contact\nNote: s",
+              "project": "Household Maintenance",
+              "priority": 3,
+              "dueString": "Apr 9",
+              "isRecurring": false
+            },
+            {
+              "content": "shades investigation",
+              "description": "Custom blackout shades installation project. Windows are non-standard sizing.\nSteps:\n1. Take photos of windows (measurements + context)\n2. Share with AI for product recommendations\n3. Research install",
+              "project": "Household Maintenance",
+              "priority": 3,
+              "dueString": "Apr 9",
+              "isRecurring": false
+            },
+            {
+              "content": "Look up the Earth Month volunteer options at DocuSign, sign up for a couple, and send a quick note to your team inviting them to join.",
+              "project": "Inbox",
+              "priority": 3,
+              "dueString": "Apr 9",
+              "isRecurring": false
+            },
+            {
+              "content": "Water the plants",
+              "project": "Home",
+              "priority": 4,
+              "dueString": "every 12 days",
+              "isRecurring": true
+            },
+            {
+              "content": "fidelity",
+              "description": "Multiple action items — reference the sheet. Mostly gathering info and sending to relevant people.",
+              "project": "Financials",
+              "priority": 3,
+              "dueString": "Apr 9",
+              "isRecurring": false
+            },
+            {
+              "content": "pull amex into simplify at",
+              "project": "Financials",
+              "priority": 1,
+              "dueString": "Apr 9",
+              "isRecurring": false
+            },
+            {
+              "content": "Weekly Todoist review",
+              "description": "Run weekly review with Claude Code.\n- Session trigger: 'let's do the weekly review'\n- Reference: ~/projects/.claude/weekly-review.md\n- Process: inbox sweep + 1 project rotation (Health → Financials → ",
+              "project": "Productivity Improvements",
+              "priority": 3,
+              "dueString": "every friday 9am",
+              "isRecurring": true
+            },
+            {
+              "content": "Wash eye mask, flip pillow case",
+              "project": "Health",
+              "priority": 4,
+              "dueString": "every 3 days 8 pm",
+              "isRecurring": true
+            },
+            {
+              "content": "Start Hinge Health PT program (back)",
+              "description": "Free through company. Good for virtual, focused on persistent back issue. Also: reach out to primary care doc for PT referral.",
+              "project": "Health",
+              "priority": 4,
+              "dueString": "Apr 9",
+              "isRecurring": false
+            },
+            {
+              "content": "Doctor appt: new PCP + back + knee + PT referrals",
+              "description": "▎ Hi Dr. [Name], I wanted to reach out about two separate issues that have come up over the past several weeks — one with\nmy lower back and one with my knee. I'm scheduling a call for Monday to discus",
+              "project": "Health",
+              "priority": 4,
+              "dueString": "Apr 9",
+              "isRecurring": false
+            },
+            {
+              "content": "bike shopping used crega",
+              "description": "Looking for a used bike. Not time-sensitive but ongoing.\n- Define price range and type\n- Consider setting up passive browsing (Craigslist alerts, Facebook Marketplace saved search)",
+              "project": "Inbox",
+              "priority": 2,
+              "dueString": "Apr 9",
+              "isRecurring": false
+            },
+            {
+              "content": "volo - join a league",
+              "description": "Text/reach out about joining a Volo SF league.\nPromo code: APRILSF10 (time-sensitive — leagues closing soon)\nConsiderations: day/time of week, current health/back status.",
+              "project": "Inbox",
+              "priority": 3,
+              "dueString": "Apr 9",
+              "isRecurring": false
+            },
+            {
+              "content": "hoka",
+              "description": "Return current pair:\n- Find return/exchange email or initiate on Hoka site\n- Print shipping label\n- Box up shoes, drop off\n\nExchange: identify replacement pair to order/swap for.\nThen: Road Runner Spo",
+              "project": "Inbox",
+              "priority": 3,
+              "dueString": "Apr 9",
+              "isRecurring": false
+            },
+            {
+              "content": "viori",
+              "description": "Return only (no exchange).\n- Find return email or initiate on Viori site\n- Print shipping label\n- Box up item, drop off",
+              "project": "Inbox",
+              "priority": 3,
+              "dueString": "Apr 9",
+              "isRecurring": false
+            },
+            {
+              "content": "Ruth",
+              "project": "Inbox",
+              "priority": 4,
+              "dueString": "Apr 9",
+              "isRecurring": false
+            },
+            {
+              "content": "[(pipedream) Error in workflow Complete a task on Google Cal, complete the task on Todoist (p_G6CVNAg) at 2:30:41 AM GMT](https://mail.google.com/mail/u/0/?authuser=sean.felderman%40gmail.com#all/FMfcgzQgLFhwPCmXMCCJcGZJDgqsbdWN)",
+              "project": "Inbox",
+              "priority": 1,
+              "dueString": "Apr 9",
+              "isRecurring": false
+            },
+            {
+              "content": "Add Connor stories [Connor & Abbey's Wedding](https://forms.gle/AkheyB4uHkZm9pDQ7)",
+              "project": "Inbox",
+              "priority": 4,
+              "dueString": "Apr 9",
+              "isRecurring": false
+            },
+            {
+              "content": "Joe baby shower register",
+              "project": "Inbox",
+              "priority": 3,
+              "dueString": "Apr 9",
+              "isRecurring": false
+            },
+            {
+              "content": "taxes",
+              "project": "Inbox",
+              "priority": 4,
+              "dueString": "Apr 9",
+              "isRecurring": false
+            },
+            {
+              "content": "Himanshu ask",
+              "project": "Inbox",
+              "priority": 4,
+              "dueString": "Apr 9",
+              "isRecurring": false
+            },
+            {
+              "content": "linked in",
+              "project": "Inbox",
+              "priority": 2,
+              "dueString": "Apr 10",
+              "isRecurring": false
+            }
+          ],
+          "inbox": [],
+          "upcoming": [
+            {
+              "content": "rotate bed",
+              "project": "Home",
+              "priority": 4,
+              "dueString": "every 6 months",
+              "isRecurring": true
+            },
+            {
+              "content": "United vs Delta card",
+              "project": "Financials",
+              "priority": 3,
+              "dueString": "Apr 13",
+              "isRecurring": false
+            },
+            {
+              "content": "CookUnity and HelloFresh - select meals for following week",
+              "project": "Inbox",
+              "priority": 4,
+              "dueString": "every mon",
+              "isRecurring": true
+            },
+            {
+              "content": "Schedule gym PT session (waiting on knee to recover)",
+              "description": "Email on file — first session free. Respond with availability indicators to book.",
+              "project": "Health",
+              "priority": 4,
+              "dueString": "Apr 12",
+              "isRecurring": false
+            },
+            {
+              "content": "wedding Lucas info dump",
+              "description": "Hi all, a few logistical reminders before our wedding in rural Hawaii. We really appreciate everybody making the trip, it’s going to be beautiful and we are very excited! \n\nPlease refer to this collag",
+              "project": "Inbox",
+              "priority": 3,
+              "dueString": "Apr 12",
+              "isRecurring": false
+            },
+            {
+              "content": "Lucas text and planning",
+              "project": "Inbox",
+              "priority": 4,
+              "dueString": "Apr 12",
+              "isRecurring": false
+            }
+          ],
+          "backlog": [
+            {
+              "content": "Progress!!!! self defense course",
+              "project": "Health",
+              "priority": 4,
+              "isRecurring": false
+            },
+            {
+              "content": "krav maga or other defense course",
+              "project": "Feel Good",
+              "priority": 4,
+              "isRecurring": false
+            },
+            {
+              "content": "check on where wealthfoemt keeps it's money",
+              "project": "Financials",
+              "priority": 4,
+              "isRecurring": false
+            },
+            {
+              "content": "Fundrise Beneficiaries add",
+              "description": "[Fundrise](https://fundrise.com/account/settings/beneficiaries)",
+              "project": "Security",
+              "priority": 4,
+              "isRecurring": false
+            },
+            {
+              "content": "Add two factor to all financial services",
+              "project": "Security",
+              "priority": 4,
+              "isRecurring": false
+            },
+            {
+              "content": "2 factor physical copies (Safebox)",
+              "project": "Security",
+              "priority": 4,
+              "isRecurring": false
+            },
+            {
+              "content": "change credit karma pass",
+              "project": "Security",
+              "priority": 4,
+              "isRecurring": false
+            },
+            {
+              "content": "Google passkey code update, not secure",
+              "project": "Security",
+              "priority": 4,
+              "isRecurring": false
+            },
+            {
+              "content": "cal vaccine record online",
+              "project": "Health",
+              "priority": 4,
+              "isRecurring": false
+            },
+            {
+              "content": "Find new PCP in San Francisco — get recommendations",
+              "project": "Health",
+              "priority": 4,
+              "isRecurring": false
+            },
+            {
+              "content": "Discuss current issues with doctor",
+              "project": "Health",
+              "priority": 4,
+              "isRecurring": false
+            },
+            {
+              "content": "Back: popped something several weeks ago — 90% resolved, some residual pain",
+              "project": "Health",
+              "priority": 4,
+              "isRecurring": false
+            },
+            {
+              "content": "Knee: strained on long bike ride (downward push) — on/off pain, worse with plane travel and bending",
+              "project": "Health",
+              "priority": 4,
+              "isRecurring": false
+            },
+            {
+              "content": "Ask for PT referrals in SF (back + knee)",
+              "project": "Health",
+              "priority": 4,
+              "isRecurring": false
+            },
+            {
+              "content": "Plan doctor + sleep study",
+              "description": "[https://www.sleepdr.com/the-sleep-blog/how-to-order-a-sleep-study/](https://www.sleepdr.com/the-sleep-blog/how-to-order-a-sleep-study/)",
+              "project": "Health",
+              "priority": 3,
+              "isRecurring": false
+            },
+            {
+              "content": "update fidelity income and projections",
+              "project": "Financials",
+              "priority": 3,
+              "isRecurring": false
+            },
+            {
+              "content": "Storage tech",
+              "project": "Shopping",
+              "priority": 3,
+              "isRecurring": false
+            },
+            {
+              "content": "suitcase wheel. Inquire sending new one",
+              "project": "Social",
+              "priority": 3,
+              "isRecurring": false
+            },
+            {
+              "content": "Beach cleanup",
+              "project": "Feel Good",
+              "priority": 3,
+              "isRecurring": false
+            },
+            {
+              "content": "Massages - [Happy Feet Foot Spa, Palo Alto](https://happyfeetfootspa.com/contact)",
+              "project": "Feel Good",
+              "priority": 3,
+              "isRecurring": false
+            },
+            {
+              "content": "reach out to WI people",
+              "description": "see how they are doing, see what they are up to now. See if they are interested in tlaking with other students",
+              "project": "Feel Good",
+              "priority": 3,
+              "isRecurring": false
+            },
+            {
+              "content": "Family enrollment in IDNotify through Fidelity",
+              "project": "Security",
+              "priority": 3,
+              "isRecurring": false
+            },
+            {
+              "content": "Google's Prompting Essentials [Google Prompting Essentials - Enroll Now](https://search.app/r9pCc)",
+              "project": "Productivity Improvements",
+              "priority": 3,
+              "isRecurring": false
+            },
+            {
+              "content": "more adjustable welgths",
+              "project": "Shopping",
+              "priority": 3,
+              "isRecurring": false
+            },
+            {
+              "content": "give blood for bruising, inside tracker",
+              "project": "Health",
+              "priority": 3,
+              "isRecurring": false
+            }
+          ],
+          "recently_completed": [
+            {
+              "content": "taxes",
+              "project": "Inbox",
+              "completed_at": "2026-04-09"
+            },
+            {
+              "content": "talk to garret",
+              "project": "Inbox",
+              "completed_at": "2026-04-09"
+            },
+            {
+              "content": "Costco insta cart (dessert, belvita, power bars)",
+              "project": "Inbox",
+              "completed_at": "2026-04-08"
+            },
+            {
+              "content": "Lucas text",
+              "project": "Inbox",
+              "completed_at": "2026-04-08"
+            },
+            {
+              "content": "Ramya referral",
+              "project": "Inbox",
+              "completed_at": "2026-04-08"
+            },
+            {
+              "content": "apple password",
+              "project": "Inbox",
+              "completed_at": "2026-04-08"
+            },
+            {
+              "content": "plane flights conor bachelor party",
+              "project": "Inbox",
+              "completed_at": "2026-04-08"
+            },
+            {
+              "content": "Connor party flights",
+              "project": "Inbox",
+              "completed_at": "2026-04-08"
+            },
+            {
+              "content": "Venmos",
+              "project": "Inbox",
+              "completed_at": "2026-04-07"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "source": "weather",
+    "description": "Weather forecast for San Francisco, CA. Includes today, tonight, and tomorrow. For routine weather, include a one-line summary. Mention weather if it affects plans (rain on outdoor event days, extreme temps, icy roads, high winds). Skip if unremarkable.",
+    "priority": "low",
+    "data": {
+      "location": "San Francisco, CA",
+      "periods": [
+        {
+          "name": "Tonight",
+          "temperature": 56,
+          "unit": "F",
+          "wind": "5 mph SSW",
+          "shortForecast": "Slight Chance Showers And Thunderstorms",
+          "detailedForecast": "A slight chance of showers and thunderstorms before 1am, then showers and thunderstorms likely. Mostly cloudy, with a low around 56. South southwest wind around 5 mph. Chance of precipitation is 70%. New rainfall amounts between a tenth and quarter of an inch possible.",
+          "precipitationChance": 72
+        },
+        {
+          "name": "Friday",
+          "temperature": 67,
+          "unit": "F",
+          "wind": "5 to 12 mph SSW",
+          "shortForecast": "Showers And Thunderstorms",
+          "detailedForecast": "Showers and thunderstorms. Mostly cloudy. High near 67, with temperatures falling to around 64 in the afternoon. South southwest wind 5 to 12 mph, with gusts as high as 18 mph. Chance of precipitation is 80%. New rainfall amounts between a tenth and quarter of an inch possible.",
+          "precipitationChance": 80
+        },
+        {
+          "name": "Friday Night",
+          "temperature": 54,
+          "unit": "F",
+          "wind": "7 to 10 mph SSW",
+          "shortForecast": "Showers And Thunderstorms Likely then Light Rain Likely",
+          "detailedForecast": "Showers and thunderstorms likely before 11pm, then rain likely. Mostly cloudy, with a low around 54. South southwest wind 7 to 10 mph. Chance of precipitation is 70%. New rainfall amounts between a tenth and quarter of an inch possible.",
+          "precipitationChance": 70
+        },
+        {
+          "name": "Saturday",
+          "temperature": 65,
+          "unit": "F",
+          "wind": "7 to 16 mph SSW",
+          "shortForecast": "Light Rain then Showers And Thunderstorms",
+          "detailedForecast": "Rain before 2pm, then showers and thunderstorms. Cloudy, with a high near 65. South southwest wind 7 to 16 mph, with gusts as high as 25 mph. Chance of precipitation is 100%. New rainfall amounts between a half and three quarters of an inch possible.",
+          "precipitationChance": 99
+        }
+      ],
+      "alerts": []
+    }
+  },
+  {
+    "source": "google_keep",
+    "description": "Google Keep: 4 notes (of 40 total). Filters: all notes, updated in last 5 days. Each note has: id, title, type (NOTE or LIST), text, labels (opaque IDs), pinned, archived, trashed, color, updated and created timestamps. Look for: important pinned notes, recently updated notes that need action.",
+    "priority": "normal",
+    "data": {
+      "notes": [
+        {
+          "id": "1eArlnudMwnK5f6eLrYiBnvfMpqZMPzA7PK1i_XFSYFVim0qDcBOnEz6Sqgg24YSQsbLd",
+          "localId": "19d7002da5c.84e1d0a0a5e3aebf",
+          "title": "",
+          "type": "NOTE",
+          "text": "The recruit \nTv",
+          "labels": [],
+          "color": "DEFAULT",
+          "pinned": false,
+          "archived": false,
+          "trashed": false,
+          "updated": "2026-04-09T02:12:16.734Z",
+          "created": "2026-04-09T02:12:09.345Z"
+        },
+        {
+          "id": "1VYOxjtbbSnp5wxR3ii00wk0v2Sd7DQskKAZqe6htd7cmbcKB3KxUQEZO2_RexxRITGOg",
+          "localId": "19d68ed2ccb.82bfc093a3ed10bd",
+          "title": "Sean Hebrew Name",
+          "type": "NOTE",
+          "text": "In addition to being called to the Torah, Sean receives today his formal Hebrew His English name Sean was chosen to להונתן אליהו name, Yonatan Eliyahu honor Bob's mother's Irish and Scottish heritage. Sean is the Celtic version of John, which comes from the biblical name Jonathan, or, in Hebrew, Y'honatan, meaning \"Gift from God.\"\n\nSean's middle name Ellis was given in honor of Sean's great great grandfather, Elijah (or Eliyahu, meaning \"God is my power\"). The English version, Ellis, was chosen because of its closeness to Elsie, the name of Eve's beloved nanny who was like a grandmother to so many of us.",
+          "labels": [],
+          "color": "DEFAULT",
+          "pinned": false,
+          "archived": false,
+          "trashed": false,
+          "updated": "2026-04-07T17:11:59.319Z",
+          "created": "2026-04-07T17:11:59.319Z"
+        },
+        {
+          "id": "137aWN6SOH-eEsN0GOMmPhlpRU6VJnVp-vFOR-uBJSDsrrTqyD8HzHkcEfXt-VvLAFxdD",
+          "localId": "19d666ba92a.b5e63155af904862",
+          "title": "",
+          "type": "NOTE",
+          "text": "\n\n\n\n\n\nCould grab a drink and wander around  I'm honestly very flexible, depends what you're feeling. If trying to actually get Maybe Saturday afternoon/evening or Sunday afternoon?\n\nYou have any fav spots? I'm also happy to \n\nFav drinks? Or spots?\nPartial to cocktails \nBooks?\n#dating",
+          "labels": [
+            "18ddf4f0121.b4800bcfe12c02e0"
+          ],
+          "color": "DEFAULT",
+          "pinned": false,
+          "archived": false,
+          "trashed": false,
+          "updated": "2026-04-10T05:24:34.057Z",
+          "created": "2026-04-07T05:30:23.291Z"
+        },
+        {
+          "id": "1fRxitftwbU8PrtnVv-tyzLnWqHxTcNWWIejCDPSHpe-IIHKQgXQorucECwExGWN2hyfR",
+          "localId": "19d5f7d61e0.96db2481958f8b8b",
+          "title": "",
+          "type": "NOTE",
+          "text": "Ai local\n\nLocal ai running small model based on Gramarly or Corrections for proofreading\nChrome extension for hooking into browser, points to local model\nModel is streaming words and deciding\nOutput is modifying the html on the page, with inline suggestions like grammerly\n\n\nNote taking\n, sorting, aggregation, movies, books, random suggestions by people - even and the making\nRecent browsing history and summarizations\nQuicker sorting and diamond of commionky used information ",
+          "labels": [],
+          "color": "DEFAULT",
+          "pinned": false,
+          "archived": false,
+          "trashed": false,
+          "updated": "2026-04-05T21:15:49.629Z",
+          "created": "2026-04-05T21:12:23.927Z"
+        }
+      ],
+      "total_notes": 40,
+      "filtered_count": 4
+    }
+  }
+]

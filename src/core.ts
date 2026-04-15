@@ -66,6 +66,7 @@ export interface ConnectorIssue {
 
 export async function fetchAll(
   config: CallsheetConfig,
+  only?: string[],
 ): Promise<{ results: ConnectorResult[]; issues: ConnectorIssue[] }> {
   const { connectors, initErrors } = loadConnectors(config as Record<string, unknown>);
   const results: ConnectorResult[] = [];
@@ -77,6 +78,7 @@ export async function fetchAll(
   }
 
   for (const conn of connectors) {
+    if (only && !only.includes(conn.name)) continue;
     try {
       console.log(`  Fetching ${conn.name}...`);
       const result = await conn.fetch();

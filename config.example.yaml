@@ -78,6 +78,18 @@ connectors:
     # budget_password_env: ACTUAL_BUDGET_E2E_PASSWORD  # only if using end-to-end encryption
     lookback_days: 7
 
+  google_keep:
+    enabled: false
+    username: "your.email@gmail.com"
+    password_env: GOOGLE_KEEP_APP_PASSWORD  # Google app password (Google Account → Security → App Passwords)
+    credentials_dir: secrets
+    token_file: keep_master_token           # saved after first auth, no password needed after that
+    titles: []                              # filter to specific note titles (empty = all notes)
+    max_notes: 20
+    updated_days: 2                         # only notes updated in last N days (0 = no date filter)
+    include_archived: false
+    include_trashed: false
+
   market:
     enabled: false
     symbols:

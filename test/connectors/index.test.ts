@@ -43,6 +43,12 @@ jest.unstable_mockModule('../../src/connectors/actual-budget.js', () => ({
     .mockReturnValue({ name: 'actual_budget', description: 'test', fetch: jest.fn() }),
   validate: jest.fn().mockReturnValue([]),
 }));
+jest.unstable_mockModule('../../src/connectors/google-keep.js', () => ({
+  create: jest
+    .fn()
+    .mockReturnValue({ name: 'google_keep', description: 'test', fetch: jest.fn() }),
+  validate: jest.fn().mockReturnValue([]),
+}));
 
 const { getRegistry, loadConnectors } = await import('../../src/connectors/index.js');
 
@@ -51,10 +57,10 @@ beforeEach(() => {
 });
 
 describe('getRegistry', () => {
-  it('should return a Map of all 8 registered connectors', () => {
+  it('should return a Map of all 9 registered connectors', () => {
     const registry = getRegistry();
     expect(registry).toBeInstanceOf(Map);
-    expect(registry.size).toBe(8);
+    expect(registry.size).toBe(9);
   });
 
   it('should contain all expected connector names', () => {
@@ -68,6 +74,7 @@ describe('getRegistry', () => {
       'market',
       'home_assistant',
       'actual_budget',
+      'google_keep',
     ];
     for (const name of expected) {
       expect(registry.has(name)).toBe(true);

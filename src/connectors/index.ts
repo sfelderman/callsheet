@@ -28,6 +28,7 @@ import {
   validate as validateHomeAssistant,
 } from './home-assistant.js';
 import { create as createActualBudget, validate as validateActualBudget } from './actual-budget.js';
+import { create as createGoogleKeep, validate as validateGoogleKeep } from './google-keep.js';
 
 export interface ConnectorEntry {
   factory: ConnectorFactory;
@@ -70,6 +71,7 @@ const registry = new Map<string, ConnectorEntry>([
   ['market', { factory: createMarket, validate: validateMarket }],
   ['home_assistant', { factory: createHomeAssistant, validate: validateHomeAssistant }],
   ['actual_budget', { factory: createActualBudget, validate: validateActualBudget }],
+  ['google_keep', { factory: createGoogleKeep, validate: validateGoogleKeep }],
 ]);
 
 export function getRegistry(): Map<string, ConnectorEntry> {

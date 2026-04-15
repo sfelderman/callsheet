@@ -19,6 +19,7 @@
     "test:coverage": "node --max-old-space-size=4096 --experimental-vm-modules node_modules/.bin/jest --coverage",
     "test:connector": "tsx src/cli.ts --test",
     "data": "tsx src/cli.ts --show-data",
+    "triage": "tsx src/cli.ts --triage",
     "auth:gcal": "sh -c 'tsx src/cli.ts --auth google_calendar${1:+:$1}' --",
     "auth:gmail": "sh -c 'tsx src/cli.ts --auth gmail${1:+:$1}' --",
     "review": "tsx src/cli.ts --review",
