@@ -4,7 +4,7 @@ import { join } from 'node:path';
 export interface UsageEntry {
   timestamp: string;
   model: string;
-  purpose: 'brief' | 'memory' | 'critique' | 'auto_close';
+  purpose: 'brief' | 'memory' | 'critique' | 'auto_close' | 'triage';
   input_tokens: number;
   output_tokens: number;
   cost_usd: number;

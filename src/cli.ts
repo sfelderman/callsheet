@@ -44,7 +44,11 @@ program
   .option('--show-data', 'Dump raw data and exit')
   .option('--list-connectors', 'List available connectors')
   .option('--test [connectors...]', 'Test connectors')
-  .option('--review [date]', 'Review a brief for quality issues (default: today)');
+  .option('--review [date]', 'Review a brief for quality issues (default: today)')
+  .option('--triage [profile]', 'Run an interactive triage session (default profile: "default")')
+  .option('--triage-file <path>', 'Path to triage.yaml', 'triage.yaml')
+  .option('--list-triage-profiles', 'List triage profiles defined in triage.yaml')
+  .option('--validate-triage-profiles', 'Validate triage.yaml and exit');
 
 program.parse();
 
@@ -56,6 +60,10 @@ const opts = program.opts<{
   listConnectors?: boolean;
   test?: string[] | true;
   review?: string | true;
+  triage?: string | true;
+  triageFile: string;
+  listTriageProfiles?: boolean;
+  validateTriageProfiles?: boolean;
 }>();
 
 async function main() {
@@ -150,6 +158,42 @@ async function main() {
       }
       console.log("\nThese have been saved and will be fed into tomorrow's prompt.");
     }
+    return;
+  }
+
+  // --- Triage mode (listing / validation / interactive) ---
+  if (opts.listTriageProfiles) {
+    const { listTriageProfiles } = await import('./triage.js');
+    const names = listTriageProfiles(opts.triageFile);
+    if (names.length === 0) {
+      console.log(`No triage profiles found in ${opts.triageFile}.`);
+      console.log('Copy triage.example.yaml → triage.yaml to get started.');
+    } else {
+      console.log(`Triage profiles (${opts.triageFile}):\n`);
+      for (const n of names) console.log(`  ${n}`);
+    }
+    return;
+  }
+
+  if (opts.validateTriageProfiles) {
+    const { loadTriageFile } = await import('./triage-profile.js');
+    try {
+      const file = loadTriageFile(opts.triageFile, config);
+      const count = Object.keys(file.profiles).length;
+      console.log(
+        `\u2713 ${opts.triageFile} is valid (${count} profile${count === 1 ? '' : 's'}).`,
+      );
+    } catch (e) {
+      console.error(e instanceof Error ? e.message : String(e));
+      process.exit(1);
+    }
+    return;
+  }
+
+  if (opts.triage !== undefined) {
+    const { runTriageCli } = await import('./triage-cli.js');
+    const profileName = typeof opts.triage === 'string' ? opts.triage : 'default';
+    await runTriageCli(config, { profileName, triageFile: opts.triageFile });
     return;
   }
 

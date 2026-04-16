@@ -10,6 +10,7 @@ web/dist/
 config.yaml
 config.*.yaml
 !config.example.yaml
+triage.yaml
 feedback.md
 PLAN.md
 coverage/

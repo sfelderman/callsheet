@@ -109,6 +109,32 @@ context:
 
 `src/render.tsx` controls the visual design using React components and `@react-pdf/renderer`. Modify the `StyleSheet.create()` styles to change fonts, spacing, colors, or page size.
 
+## Triage
+
+In addition to the daily brief, callsheet ships an **interactive triage
+mode** that walks a scoped slice of your Gmail + Todoist with you and
+cleans up — archive receipts, trash promos, close stale tasks, reschedule
+what's still relevant. Each pass uses a named *triage profile* from
+`triage.yaml` (separate from `config.yaml`) that overrides connector
+fetch filters so you see the right slice for cleanup rather than the 25
+most-recent items tuned for the summary brief.
+
+```bash
+# one-time: expand Gmail scope + copy the example profiles
+callsheet --auth gmail
+cp triage.example.yaml triage.yaml
+
+# run
+callsheet --triage                 # "default" profile
+callsheet --triage inbox_zero      # a named profile
+callsheet --list-triage-profiles
+```
+
+Each item offers `[y]es / [n]o / [e]dit / [s]kip / [m]ore / [q]uit`. Cross-service
+routing suggestions (e.g. "this email should be a Todoist task") surface
+as recommendations — v1 does not auto-create the task. See
+[docs/TRIAGE.md](docs/TRIAGE.md) for the full reference.
+
 ## Architecture
 
 ```
