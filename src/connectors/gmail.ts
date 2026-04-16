@@ -10,7 +10,13 @@ import {
   type GoogleAccount,
 } from './google-auth.js';
 
-const SCOPES = ['https://www.googleapis.com/auth/gmail.readonly'];
+// gmail.modify lets the triage session archive / mark-read / trash.
+// It's a superset of gmail.readonly — the daily brief still only reads,
+// but the broader scope is requested at auth time so one re-auth covers
+// both flows. Existing users must re-run `callsheet --auth gmail` after
+// upgrading; the token issued under the old readonly scope will fail
+// modify calls with 403.
+const SCOPES = ['https://www.googleapis.com/auth/gmail.modify'];
 
 /** Fetch a list of message objects from a Gmail query, deduplicating by ID. */
 async function fetchMessages(
