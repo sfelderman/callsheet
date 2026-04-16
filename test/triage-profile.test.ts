@@ -288,4 +288,46 @@ describe('applyProfileOverrides', () => {
     });
     expect(merged.model).toBe('claude-sonnet-4-20250514');
   });
+
+  it('translates profile accounts allowlist into a filtered connector accounts list', () => {
+    const multiAccountConfig: CallsheetConfig = {
+      connectors: {
+        todoist: {
+          enabled: true,
+          accounts: [
+            { name: 'Alice', token_env: 'T_A' },
+            { name: 'Bob', token_env: 'T_B' },
+          ],
+        },
+      },
+    };
+    const merged = applyProfileOverrides(multiAccountConfig, {
+      connectors: { todoist: { accounts: ['Alice'] } },
+    });
+    const todoist = merged.connectors?.todoist as {
+      accounts?: { name: string; token_env: string }[];
+    };
+    expect(todoist.accounts?.map((a) => a.name)).toEqual(['Alice']);
+  });
+
+  it('leaves connector accounts untouched when profile omits the allowlist', () => {
+    const multiAccountConfig: CallsheetConfig = {
+      connectors: {
+        todoist: {
+          enabled: true,
+          accounts: [
+            { name: 'Alice', token_env: 'T_A' },
+            { name: 'Bob', token_env: 'T_B' },
+          ],
+        },
+      },
+    };
+    const merged = applyProfileOverrides(multiAccountConfig, {
+      connectors: { todoist: { include_overdue_only: true } },
+    });
+    const todoist = merged.connectors?.todoist as {
+      accounts?: { name: string; token_env: string }[];
+    };
+    expect(todoist.accounts?.map((a) => a.name)).toEqual(['Alice', 'Bob']);
+  });
 });

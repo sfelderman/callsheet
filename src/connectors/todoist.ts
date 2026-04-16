@@ -10,6 +10,22 @@ interface TodoistTask {
   project_id?: string;
   priority?: number;
   due?: { date: string; string: string; is_recurring: boolean } | null;
+  /** ISO-8601 timestamp when the task was added. Used by triage filters. */
+  added_at?: string;
+}
+
+/**
+ * Triage-only filter knobs read from the config. Applied to the flat task
+ * list before bucketing; the daily brief sets none of these and gets its
+ * usual behavior. Defined alongside the connector because the filtering
+ * lives here — triage-profile.ts only validates the shape.
+ */
+export interface TodoistFilters {
+  max_tasks?: number;
+  include_overdue_only?: boolean;
+  include_older_than_days?: number;
+  projects?: string[];
+  accounts?: string[];
 }
 
 interface CompletedTask {
@@ -31,7 +47,65 @@ interface PaginatedResponse<T> {
   next_cursor: string | null;
 }
 
-async function fetchAccount(token: string, label: string): Promise<Record<string, unknown>> {
+/**
+ * Apply triage filters to the flat task list. Runs before bucketing so the
+ * today/inbox/upcoming/backlog views all narrow consistently. Exported for
+ * unit tests; the daily brief passes no filters and gets the full list.
+ */
+export function applyTodoistFilters(
+  tasks: TodoistTask[],
+  projectNameById: Record<string, string>,
+  filters: TodoistFilters,
+): TodoistTask[] {
+  let out = tasks;
+
+  if (filters.include_overdue_only) {
+    const today = new Date().toISOString().slice(0, 10);
+    out = out.filter((t) => t.due?.date && t.due.date < today);
+  }
+
+  if (typeof filters.include_older_than_days === 'number') {
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - filters.include_older_than_days);
+    const cutoffIso = cutoff.toISOString();
+    // Tasks without a known added_at are conservatively excluded — we can't
+    // prove they're old enough, and closing "unknown-age" tasks in a triage
+    // session would be a bad default.
+    out = out.filter((t) => typeof t.added_at === 'string' && t.added_at <= cutoffIso);
+  }
+
+  if (Array.isArray(filters.projects) && filters.projects.length) {
+    const wanted = new Set(filters.projects);
+    out = out.filter((t) => wanted.has(projectNameById[t.project_id ?? ''] ?? ''));
+  }
+
+  if (typeof filters.max_tasks === 'number' && out.length > filters.max_tasks) {
+    // Stable sort: highest priority first, then soonest-due, then oldest added.
+    // Keeps the most-triageable items when capping.
+    out = [...out]
+      .sort((a, b) => {
+        const pDiff = (b.priority ?? 1) - (a.priority ?? 1);
+        if (pDiff !== 0) return pDiff;
+        const aDue = a.due?.date ?? '9999-12-31';
+        const bDue = b.due?.date ?? '9999-12-31';
+        if (aDue !== bDue) return aDue < bDue ? -1 : 1;
+        const aAdd = a.added_at ?? '9999-12-31';
+        const bAdd = b.added_at ?? '9999-12-31';
+        if (aAdd < bAdd) return -1;
+        if (aAdd > bAdd) return 1;
+        return 0;
+      })
+      .slice(0, filters.max_tasks);
+  }
+
+  return out;
+}
+
+async function fetchAccount(
+  token: string,
+  label: string,
+  filters: TodoistFilters = {},
+): Promise<Record<string, unknown>> {
   const headers = { Authorization: `Bearer ${token}` };
 
   async function get<T = TodoistTask>(
@@ -64,7 +138,11 @@ async function fetchAccount(token: string, label: string): Promise<Record<string
   const inboxId = projectList.find((p) => p.inbox_project)?.id;
 
   // Fetch all open tasks across all projects
-  const allTasks = await get('tasks');
+  const rawTasks = await get('tasks');
+
+  // Triage filters narrow the flat task list BEFORE bucketing so today /
+  // inbox / upcoming / backlog views all shrink consistently when scoped.
+  const allTasks = applyTodoistFilters(rawTasks, projects, filters);
 
   // Fetch recently completed tasks (last 3 days) so the memory system
   // can see what was resolved and stop re-flagging completed items.
@@ -145,6 +223,17 @@ export function create(config: ConnectorConfig): Connector {
         name: string;
         token_env: string;
       }[];
+      // Triage profiles can inject the post-fetch filter knobs via the
+      // same ConnectorConfig dictionary; unused keys on the daily-brief
+      // path are a no-op. Account allowlisting is handled upstream in
+      // applyProfileOverrides() so the connector never sees it.
+      const filters: TodoistFilters = {
+        max_tasks: config.max_tasks as number | undefined,
+        include_overdue_only: config.include_overdue_only as boolean | undefined,
+        include_older_than_days: config.include_older_than_days as number | undefined,
+        projects: config.projects as string[] | undefined,
+      };
+
       const results: Record<string, unknown>[] = [];
 
       for (const acct of accounts) {
@@ -153,7 +242,7 @@ export function create(config: ConnectorConfig): Connector {
           console.log(`  Warning: ${acct.token_env} not set, skipping ${acct.name}`);
           continue;
         }
-        results.push(await fetchAccount(token, acct.name));
+        results.push(await fetchAccount(token, acct.name, filters));
       }
 
       const totalToday = results.reduce((sum, r) => sum + (r.today as unknown[]).length, 0);

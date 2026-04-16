@@ -1,5 +1,6 @@
 import { jest } from '@jest/globals';
 import type { ConnectorConfig } from '../../src/types.js';
+import { applyTodoistFilters } from '../../src/connectors/todoist.js';
 
 const originalFetch = globalThis.fetch;
 
@@ -245,5 +246,92 @@ describe('todoist connector', () => {
       });
       expect(checks.some(([, msg]) => msg.includes('1 account'))).toBe(true);
     });
+  });
+});
+
+describe('applyTodoistFilters (triage)', () => {
+  const today = new Date().toISOString().slice(0, 10);
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const tomorrowStr = tomorrow.toISOString().slice(0, 10);
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayStr = yesterday.toISOString().slice(0, 10);
+
+  const projectsById = { p_work: 'Work', p_inbox: 'Inbox', p_fin: 'Finance' };
+
+  const sample = [
+    {
+      id: 'a',
+      content: 'Overdue work task',
+      project_id: 'p_work',
+      priority: 3,
+      due: { date: yesterdayStr, string: 'yesterday', is_recurring: false },
+      added_at: '2024-01-01T00:00:00Z', // ancient
+    },
+    {
+      id: 'b',
+      content: 'Due tomorrow finance',
+      project_id: 'p_fin',
+      priority: 2,
+      due: { date: tomorrowStr, string: 'tomorrow', is_recurring: false },
+      added_at: new Date().toISOString(),
+    },
+    {
+      id: 'c',
+      content: 'No due, inbox',
+      project_id: 'p_inbox',
+      priority: 1,
+      due: null,
+      // No added_at — conservatively excluded by older_than_days filter.
+    },
+    {
+      id: 'd',
+      content: 'Due today work',
+      project_id: 'p_work',
+      priority: 4,
+      due: { date: today, string: 'today', is_recurring: false },
+      added_at: '2024-02-01T00:00:00Z', // old
+    },
+  ];
+
+  it('returns input unchanged when no filters given', () => {
+    expect(applyTodoistFilters(sample, projectsById, {})).toEqual(sample);
+  });
+
+  it('include_overdue_only keeps only tasks with due.date before today', () => {
+    const out = applyTodoistFilters(sample, projectsById, { include_overdue_only: true });
+    expect(out.map((t) => t.id)).toEqual(['a']);
+  });
+
+  it('include_older_than_days filters by added_at and excludes unknown-age tasks', () => {
+    const out = applyTodoistFilters(sample, projectsById, { include_older_than_days: 30 });
+    // 'a' and 'd' are added in early 2024, 'b' is today, 'c' has no added_at.
+    expect(out.map((t) => t.id).sort()).toEqual(['a', 'd']);
+  });
+
+  it('projects filter matches by resolved name', () => {
+    const out = applyTodoistFilters(sample, projectsById, { projects: ['Work'] });
+    expect(out.map((t) => t.id).sort()).toEqual(['a', 'd']);
+  });
+
+  it('projects filter ignores unknown project names', () => {
+    const out = applyTodoistFilters(sample, projectsById, { projects: ['Nope'] });
+    expect(out).toEqual([]);
+  });
+
+  it('max_tasks caps by priority, then due date, then age', () => {
+    const out = applyTodoistFilters(sample, projectsById, { max_tasks: 2 });
+    // Highest priority first: 'd' (p4), then 'a' (p3).
+    expect(out.map((t) => t.id)).toEqual(['d', 'a']);
+  });
+
+  it('combines filters sequentially', () => {
+    const out = applyTodoistFilters(sample, projectsById, {
+      projects: ['Work'],
+      max_tasks: 1,
+    });
+    // Work tasks are 'a' and 'd'; highest priority is 'd'.
+    expect(out.map((t) => t.id)).toEqual(['d']);
   });
 });

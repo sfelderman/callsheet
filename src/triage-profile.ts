@@ -420,6 +420,10 @@ export function resolveProfile(file: TriageProfilesFile, name: string): TriagePr
  *    with the profile's keys merged on top (override wins).
  *  - Every connector NOT referenced by the profile is disabled, so
  *    fetchAll() will skip it. Triage sessions are always scoped.
+ *  - The profile's `accounts: string[]` allowlist is translated into a
+ *    filtered version of the connector's existing `accounts: [{name,
+ *    token_env|...}, ...]` list, so the connector code never has to learn
+ *    the triage-specific shape.
  *
  * Never mutates the caller's config.
  */
@@ -438,11 +442,27 @@ export function applyProfileOverrides(
   for (const [connName, overrides] of Object.entries(profile.connectors)) {
     if (!overrides) continue;
     const base = baseConnectors[connName] ?? {};
-    nextConnectors[connName] = {
+    // The profile's `accounts` is an allowlist of names. Translate it by
+    // filtering the base connector's existing `accounts` array (which
+    // contains full {name, token_env, ...} objects) so the connector keeps
+    // reading its usual shape.
+    const { accounts: profileAccounts, ...restOverrides } = overrides as ConnectorConfig & {
+      accounts?: string[];
+    };
+    const merged: ConnectorConfig = {
       ...base,
-      ...overrides,
+      ...restOverrides,
       enabled: true,
     };
+    if (Array.isArray(profileAccounts) && profileAccounts.length) {
+      const baseAccounts = (base.accounts as { name?: string }[] | undefined) ?? [];
+      if (baseAccounts.length) {
+        merged.accounts = baseAccounts.filter(
+          (a) => typeof a?.name === 'string' && profileAccounts.includes(a.name),
+        );
+      }
+    }
+    nextConnectors[connName] = merged;
   }
 
   return { ...baseConfig, connectors: nextConnectors };
