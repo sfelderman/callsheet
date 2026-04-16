@@ -13,6 +13,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { CallsheetConfig, ConnectorResult, Check } from './types.js';
 import { getRegistry } from './connectors/index.js';
+import { isMockMode } from './mocks/index.js';
 import { C, PASS, FAIL, WARN, INFO, SKIP } from './test-icons.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -187,7 +188,8 @@ export async function runTests(config: CallsheetConfig, only?: string[]): Promis
   const results: TestResult[] = [];
 
   for (const name of testNames) {
-    banner(`Testing: ${name}`);
+    const mockTag = isMockMode() ? ` ${C.YELLOW}[MOCK]${C.RESET}` : '';
+    banner(`Testing: ${name}${mockTag}`);
     const connConfig = connectorConfigs[name] ?? {};
 
     // Config validation

@@ -1,5 +1,17 @@
 #!/usr/bin/env node
 import 'dotenv/config';
+import { isMockMode, getMockBaseUrl } from './mocks/index.js';
+
+if (isMockMode()) {
+  console.warn('');
+  console.warn('━━━ MOCK MODE ENABLED ━━━');
+  console.warn(`  Todoist → ${getMockBaseUrl()}`);
+  console.warn(`  Scenario: ${process.env.CALLSHEET_MOCK_SCENARIO ?? 'typical-day'}`);
+  console.warn('  No real API calls will be made. Brief output is FAKE.');
+  console.warn('━━━━━━━━━━━━━━━━━━━━━━━━━');
+  console.warn('');
+}
+
 import { program } from 'commander';
 import {
   loadConfig,

@@ -186,6 +186,12 @@ Every household is different. The connector pattern means you write a TypeScript
 
 Yes. `--preview` saves the PDF. Email it, display it on a tablet, show it on a dashboard — whatever works.
 
+## Local development with mock data
+
+Run connectors against local mock API servers instead of real services — no real data, no API keys needed. Set `CALLSHEET_MOCK_MODE=true` to redirect connectors to the mock, then start the mock server with `yarn mock:todoist`.
+
+See **[docs/mocking.md](docs/mocking.md)** for full setup, fixture management, and how to add regression tests.
+
 ## Contributing
 
 PRs welcome — especially new connectors. See [docs/CONNECTORS.md](docs/CONNECTORS.md).

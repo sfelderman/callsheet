@@ -1,7 +1,14 @@
 import type { Connector, ConnectorConfig, ConnectorResult, Check } from '../types.js';
 import { PASS, FAIL } from '../test-icons.js';
+import { getMockBaseUrl, isMockMode, MOCK_PREFIX } from '../mocks/index.js';
 
-const API = 'https://api.todoist.com/api/v1';
+const REAL_API = 'https://api.todoist.com/api/v1';
+
+/** Returns the mock URL when mock mode is active, else the real Todoist API. */
+function apiBase(): string {
+  const mockUrl = getMockBaseUrl();
+  return mockUrl ? `${mockUrl}/api/v1` : REAL_API;
+}
 
 interface TodoistTask {
   id: string;
@@ -42,7 +49,7 @@ async function fetchAccount(token: string, label: string): Promise<Record<string
     let cursor: string | null = null;
 
     do {
-      const url = new URL(`${API}/${endpoint}`);
+      const url = new URL(`${apiBase()}/${endpoint}`);
       if (params) Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
       if (cursor) url.searchParams.set('cursor', cursor);
 
@@ -73,7 +80,7 @@ async function fetchAccount(token: string, label: string): Promise<Record<string
     const since = new Date();
     since.setDate(since.getDate() - 3);
     const until = new Date();
-    const url = new URL(`${API}/tasks/completed/by_completion_date`);
+    const url = new URL(`${apiBase()}/tasks/completed/by_completion_date`);
     url.searchParams.set('since', since.toISOString());
     url.searchParams.set('until', until.toISOString());
     url.searchParams.set('limit', '50');
@@ -165,9 +172,12 @@ export function create(config: ConnectorConfig): Connector {
         0,
       );
 
+      const descPrefix = isMockMode() ? `${MOCK_PREFIX} ` : '';
+
       return {
         source: 'todoist',
         description:
+          descPrefix +
           `Todoist data for ${results.length} account(s). ` +
           `${totalToday} tasks due today/overdue, ${totalInbox} inbox items, ${totalBacklog} backlog items, ${totalCompleted} recently completed. ` +
           "Each account has 'today' (due today + overdue), 'inbox' (unsorted items in Inbox project), " +
