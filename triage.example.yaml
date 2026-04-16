@@ -1,0 +1,53 @@
+# callsheet triage profiles
+# Copy to triage.yaml and customize. Each profile is a named set of fetch
+# overrides that widens (or narrows) the connector defaults during a
+# triage session. The daily brief config stays untouched.
+#
+# Run:   callsheet --triage                 (uses the 'default' profile)
+#        callsheet --triage inbox_zero      (uses a named profile)
+#        callsheet --list-triage-profiles
+#        callsheet --validate-triage-profiles
+#
+# Only `gmail` and `todoist` connectors are supported in v1.
+
+profiles:
+
+  # Weekly-ish cleanup. Wider gmail window than the daily brief, Todoist
+  # scoped to overdue tasks only so the session stays focused.
+  default:
+    description: "Weekly cleanup pass — actionable inbox + overdue tasks"
+    connectors:
+      gmail:
+        query: "newer_than:7d -category:promotions -category:social"
+        max_messages: 150
+      todoist:
+        include_overdue_only: true
+        max_tasks: 200
+
+  # Full inbox triage — everything currently in the inbox, no recency filter.
+  # Tune `max_messages` up if you have a heavy backlog; the Claude call is
+  # billed on what's sent so start conservative.
+  inbox_zero:
+    description: "Process the entire inbox"
+    connectors:
+      gmail:
+        query: "in:inbox"
+        max_messages: 300
+
+  # Old tasks that have drifted without a due date. Good for quarterly
+  # garbage-collection passes on Todoist.
+  stale_tasks:
+    description: "Todoist tasks older than 30 days"
+    connectors:
+      todoist:
+        include_older_than_days: 30
+        max_tasks: 300
+
+  # Newsletter / promotions sweep. Keep the window wide so repeat senders
+  # are obvious and batch-archivable.
+  newsletters:
+    description: "Promotions and newsletters from the last 30 days"
+    connectors:
+      gmail:
+        query: "category:promotions newer_than:30d"
+        max_messages: 400
