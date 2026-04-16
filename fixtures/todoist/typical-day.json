@@ -1,0 +1,146 @@
+{
+  "projects": [
+    { "id": "p_inbox", "name": "Inbox", "inbox_project": true },
+    { "id": "p_work", "name": "Work" },
+    { "id": "p_personal", "name": "Personal" },
+    { "id": "p_house", "name": "House" },
+    { "id": "p_errands", "name": "Errands" }
+  ],
+  "tasks": [
+    {
+      "id": "t_standup",
+      "content": "Daily standup",
+      "description": "Zoom link in bookmarks",
+      "project_id": "p_work",
+      "priority": 3,
+      "due": { "date": "<TODAY>", "string": "every weekday", "is_recurring": true }
+    },
+    {
+      "id": "t_pr_review",
+      "content": "Review auth PR #42",
+      "description": "Security-critical change — check token handling",
+      "project_id": "p_work",
+      "priority": 4,
+      "due": { "date": "<TODAY>", "string": "today", "is_recurring": false }
+    },
+    {
+      "id": "t_dentist",
+      "content": "Dentist appointment",
+      "description": "3:30 PM, Dr. Smith",
+      "project_id": "p_personal",
+      "priority": 2,
+      "due": { "date": "<TODAY>", "string": "today", "is_recurring": false }
+    },
+    {
+      "id": "t_overdue_expense",
+      "content": "Submit expense report",
+      "description": "March receipts",
+      "project_id": "p_work",
+      "priority": 3,
+      "due": { "date": "<TODAY-2>", "string": "2 days ago", "is_recurring": false }
+    },
+    {
+      "id": "t_groceries",
+      "content": "Pick up groceries",
+      "description": "Milk, eggs, bread, bananas",
+      "project_id": "p_errands",
+      "priority": 1,
+      "due": { "date": "<TODAY+1>", "string": "tomorrow", "is_recurring": false }
+    },
+    {
+      "id": "t_laundry",
+      "content": "Do laundry",
+      "project_id": "p_house",
+      "priority": 1,
+      "due": { "date": "<TODAY+2>", "string": "in 2 days", "is_recurring": false }
+    },
+    {
+      "id": "t_weekly_review",
+      "content": "Weekly project review",
+      "description": "Check OKR progress, update status page",
+      "project_id": "p_work",
+      "priority": 2,
+      "due": { "date": "<TODAY+3>", "string": "Friday", "is_recurring": true }
+    },
+    {
+      "id": "t_car_wash",
+      "content": "Wash the car",
+      "project_id": "p_errands",
+      "priority": 1,
+      "due": { "date": "<TODAY+5>", "string": "next week", "is_recurring": false }
+    },
+    {
+      "id": "t_vet",
+      "content": "Vet checkup for dog",
+      "description": "Annual vaccines",
+      "project_id": "p_personal",
+      "priority": 2,
+      "due": { "date": "<TODAY+6>", "string": "next week", "is_recurring": false }
+    },
+    {
+      "id": "t_far_future",
+      "content": "Renew passport",
+      "project_id": "p_personal",
+      "priority": 1,
+      "due": { "date": "<TODAY+30>", "string": "next month", "is_recurring": false }
+    },
+    {
+      "id": "t_inbox_idea",
+      "content": "Research home automation options",
+      "project_id": "p_inbox",
+      "priority": 1,
+      "due": null
+    },
+    {
+      "id": "t_inbox_note",
+      "content": "Book club meeting — ask about next pick",
+      "project_id": "p_inbox",
+      "priority": 1,
+      "due": null
+    },
+    {
+      "id": "t_backlog_read",
+      "content": "Read 'Designing Data-Intensive Applications'",
+      "project_id": "p_personal",
+      "priority": 1,
+      "due": null
+    },
+    {
+      "id": "t_backlog_organize",
+      "content": "Organize garage shelves",
+      "project_id": "p_house",
+      "priority": 1,
+      "due": null
+    },
+    {
+      "id": "t_backlog_blog",
+      "content": "Write blog post about TypeScript patterns",
+      "project_id": "p_work",
+      "priority": 1,
+      "due": null
+    }
+  ],
+  "completed": [
+    {
+      "id": "c_oil",
+      "content": "Schedule oil change",
+      "project_id": "p_errands",
+      "priority": 1,
+      "completed_at": "<TODAY-1>T14:30:00Z"
+    },
+    {
+      "id": "c_slides",
+      "content": "Prepare team meeting slides",
+      "project_id": "p_work",
+      "priority": 3,
+      "completed_at": "<TODAY-1>T09:15:00Z"
+    },
+    {
+      "id": "c_call",
+      "content": "Call insurance company",
+      "project_id": "p_personal",
+      "priority": 2,
+      "completed_at": "<TODAY-2>T16:00:00Z"
+    }
+  ]
+}

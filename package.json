@@ -23,6 +23,7 @@
     "auth:gmail": "sh -c 'tsx src/cli.ts --auth gmail${1:+:$1}' --",
     "review": "tsx src/cli.ts --review",
     "connectors": "tsx src/cli.ts --list-connectors",
+    "mock:todoist": "tsx bin/mock-todoist.ts",
     "lint": "eslint src/",
     "lint:fix": "eslint src/ --fix",
     "format": "prettier --write 'src/**/*.{ts,tsx}'",

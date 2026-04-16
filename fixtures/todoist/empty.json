@@ -1,0 +1,7 @@
+{
+  "projects": [
+    { "id": "p_inbox", "name": "Inbox", "inbox_project": true }
+  ],
+  "tasks": [],
+  "completed": []
+}

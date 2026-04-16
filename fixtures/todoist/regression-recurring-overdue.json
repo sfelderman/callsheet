@@ -1,0 +1,30 @@
+{
+  "projects": [
+    { "id": "p_inbox", "name": "Inbox", "inbox_project": true },
+    { "id": "p_work", "name": "Work" }
+  ],
+  "tasks": [
+    {
+      "id": "rec_today",
+      "content": "Daily standup",
+      "project_id": "p_work",
+      "priority": 2,
+      "due": { "date": "<TODAY>", "string": "every day", "is_recurring": true }
+    },
+    {
+      "id": "rec_overdue",
+      "content": "Weekly review (recurring, overdue 2 days)",
+      "project_id": "p_work",
+      "priority": 3,
+      "due": { "date": "<TODAY-2>", "string": "every Monday", "is_recurring": true }
+    },
+    {
+      "id": "future_task",
+      "content": "Plan sprint",
+      "project_id": "p_work",
+      "priority": 1,
+      "due": { "date": "<TODAY+5>", "string": "next week", "is_recurring": false }
+    }
+  ],
+  "completed": []
+}

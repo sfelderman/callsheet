@@ -1,0 +1,420 @@
+{
+  "pageSize": 10,
+  "projects": [
+    { "id": "p_inbox", "name": "Inbox", "inbox_project": true },
+    { "id": "p_work", "name": "Work", "inbox_project": false },
+    { "id": "p_personal", "name": "Personal", "inbox_project": false },
+    { "id": "p_finance", "name": "Finance", "inbox_project": false },
+    { "id": "p_ops", "name": "Operations", "inbox_project": false }
+  ],
+  "tasks": [
+    {
+      "id": "t_01",
+      "content": "Follow up on invoice #1042",
+      "project_id": "p_finance",
+      "priority": 4,
+      "due": { "date": "<TODAY-10>", "string": "10 days ago", "is_recurring": false }
+    },
+    {
+      "id": "t_02",
+      "content": "Review quarterly budget report",
+      "project_id": "p_finance",
+      "priority": 4,
+      "due": { "date": "<TODAY-9>", "string": "9 days ago", "is_recurring": false }
+    },
+    {
+      "id": "t_03",
+      "content": "Respond to vendor contract renewal",
+      "project_id": "p_ops",
+      "priority": 4,
+      "due": { "date": "<TODAY-9>", "string": "9 days ago", "is_recurring": false }
+    },
+    {
+      "id": "t_04",
+      "content": "Submit timesheet for last pay period",
+      "project_id": "p_work",
+      "priority": 3,
+      "due": { "date": "<TODAY-8>", "string": "8 days ago", "is_recurring": false }
+    },
+    {
+      "id": "t_05",
+      "content": "Approve pull request for auth module",
+      "project_id": "p_work",
+      "priority": 4,
+      "due": { "date": "<TODAY-8>", "string": "8 days ago", "is_recurring": false }
+    },
+    {
+      "id": "t_06",
+      "content": "Send meeting notes to stakeholders",
+      "project_id": "p_work",
+      "priority": 2,
+      "due": { "date": "<TODAY-7>", "string": "7 days ago", "is_recurring": false }
+    },
+    {
+      "id": "t_07",
+      "content": "Update project risk register",
+      "project_id": "p_ops",
+      "priority": 3,
+      "due": { "date": "<TODAY-7>", "string": "7 days ago", "is_recurring": false }
+    },
+    {
+      "id": "t_08",
+      "content": "Review open support tickets",
+      "project_id": "p_ops",
+      "priority": 2,
+      "due": { "date": "<TODAY-7>", "string": "7 days ago", "is_recurring": false }
+    },
+    {
+      "id": "t_09",
+      "content": "Pay office supply invoice",
+      "project_id": "p_finance",
+      "priority": 4,
+      "due": { "date": "<TODAY-6>", "string": "6 days ago", "is_recurring": false }
+    },
+    {
+      "id": "t_10",
+      "content": "Schedule quarterly planning meeting",
+      "project_id": "p_work",
+      "priority": 3,
+      "due": { "date": "<TODAY-6>", "string": "6 days ago", "is_recurring": false }
+    },
+    {
+      "id": "t_11",
+      "content": "File expense receipts from conference",
+      "project_id": "p_finance",
+      "priority": 2,
+      "due": { "date": "<TODAY-6>", "string": "6 days ago", "is_recurring": false }
+    },
+    {
+      "id": "t_12",
+      "content": "Draft performance review for direct report",
+      "project_id": "p_work",
+      "priority": 4,
+      "due": { "date": "<TODAY-5>", "string": "5 days ago", "is_recurring": false }
+    },
+    {
+      "id": "t_13",
+      "content": "Renew software license for dev tools",
+      "project_id": "p_ops",
+      "priority": 3,
+      "due": { "date": "<TODAY-5>", "string": "5 days ago", "is_recurring": false }
+    },
+    {
+      "id": "t_14",
+      "content": "Update onboarding documentation",
+      "project_id": "p_work",
+      "priority": 1,
+      "due": { "date": "<TODAY-5>", "string": "5 days ago", "is_recurring": false }
+    },
+    {
+      "id": "t_15",
+      "content": "Order replacement toner cartridges",
+      "project_id": "p_ops",
+      "priority": 2,
+      "due": { "date": "<TODAY-5>", "string": "5 days ago", "is_recurring": false }
+    },
+    {
+      "id": "t_16",
+      "content": "Reconcile petty cash ledger",
+      "project_id": "p_finance",
+      "priority": 3,
+      "due": { "date": "<TODAY-4>", "string": "4 days ago", "is_recurring": false }
+    },
+    {
+      "id": "t_17",
+      "content": "Review CI pipeline failure logs",
+      "project_id": "p_work",
+      "priority": 4,
+      "due": { "date": "<TODAY-4>", "string": "4 days ago", "is_recurring": false }
+    },
+    {
+      "id": "t_18",
+      "content": "Update dependencies in staging environment",
+      "project_id": "p_ops",
+      "priority": 2,
+      "due": { "date": "<TODAY-4>", "string": "4 days ago", "is_recurring": false }
+    },
+    {
+      "id": "t_19",
+      "content": "Send weekly status report",
+      "project_id": "p_work",
+      "priority": 3,
+      "due": { "date": "<TODAY-4>", "string": "4 days ago", "is_recurring": true }
+    },
+    {
+      "id": "t_20",
+      "content": "Prepare agenda for board meeting",
+      "project_id": "p_work",
+      "priority": 4,
+      "due": { "date": "<TODAY-3>", "string": "3 days ago", "is_recurring": false }
+    },
+    {
+      "id": "t_21",
+      "content": "Audit access permissions for shared drive",
+      "project_id": "p_ops",
+      "priority": 3,
+      "due": { "date": "<TODAY-3>", "string": "3 days ago", "is_recurring": false }
+    },
+    {
+      "id": "t_22",
+      "content": "Return library books",
+      "project_id": "p_personal",
+      "priority": 1,
+      "due": { "date": "<TODAY-3>", "string": "3 days ago", "is_recurring": false }
+    },
+    {
+      "id": "t_23",
+      "content": "Follow up on reimbursement request",
+      "project_id": "p_finance",
+      "priority": 2,
+      "due": { "date": "<TODAY-3>", "string": "3 days ago", "is_recurring": false }
+    },
+    {
+      "id": "t_24",
+      "content": "Test backup restoration procedure",
+      "project_id": "p_ops",
+      "priority": 3,
+      "due": { "date": "<TODAY-3>", "string": "3 days ago", "is_recurring": false }
+    },
+    {
+      "id": "t_25",
+      "content": "Reply to partnership inquiry email",
+      "project_id": "p_work",
+      "priority": 2,
+      "due": { "date": "<TODAY-2>", "string": "2 days ago", "is_recurring": false }
+    },
+    {
+      "id": "t_26",
+      "content": "Update inventory spreadsheet",
+      "project_id": "p_ops",
+      "priority": 1,
+      "due": { "date": "<TODAY-2>", "string": "2 days ago", "is_recurring": false }
+    },
+    {
+      "id": "t_27",
+      "content": "Review draft of project proposal",
+      "project_id": "p_work",
+      "priority": 3,
+      "due": { "date": "<TODAY-2>", "string": "2 days ago", "is_recurring": false }
+    },
+    {
+      "id": "t_28",
+      "content": "Call accountant about tax filing",
+      "project_id": "p_finance",
+      "priority": 4,
+      "due": { "date": "<TODAY-2>", "string": "2 days ago", "is_recurring": false }
+    },
+    {
+      "id": "t_29",
+      "content": "Clean up stale feature branches",
+      "project_id": "p_work",
+      "priority": 1,
+      "due": { "date": "<TODAY-2>", "string": "2 days ago", "is_recurring": false }
+    },
+    {
+      "id": "t_30",
+      "content": "Confirm catering for team lunch",
+      "project_id": "p_ops",
+      "priority": 2,
+      "due": { "date": "<TODAY-1>", "string": "yesterday", "is_recurring": false }
+    },
+    {
+      "id": "t_31",
+      "content": "Ship returns to warehouse",
+      "project_id": "p_ops",
+      "priority": 1,
+      "due": { "date": "<TODAY-1>", "string": "yesterday", "is_recurring": false }
+    },
+    {
+      "id": "t_32",
+      "content": "Resolve merge conflict in main branch",
+      "project_id": "p_work",
+      "priority": 3,
+      "due": { "date": "<TODAY-1>", "string": "yesterday", "is_recurring": false }
+    },
+    {
+      "id": "t_33",
+      "content": "Submit travel reimbursement form",
+      "project_id": "p_finance",
+      "priority": 2,
+      "due": { "date": "<TODAY-1>", "string": "yesterday", "is_recurring": false }
+    },
+    {
+      "id": "t_34",
+      "content": "Drop off dry cleaning",
+      "project_id": "p_personal",
+      "priority": 1,
+      "due": { "date": "<TODAY-1>", "string": "yesterday", "is_recurring": false }
+    },
+    {
+      "id": "t_35",
+      "content": "Review updated terms of service document",
+      "project_id": "p_work",
+      "priority": 2,
+      "due": { "date": "<TODAY-1>", "string": "yesterday", "is_recurring": false }
+    },
+    {
+      "id": "t_36",
+      "content": "Check server monitoring alerts",
+      "project_id": "p_ops",
+      "priority": 3,
+      "due": { "date": "<TODAY-1>", "string": "yesterday", "is_recurring": true }
+    },
+    {
+      "id": "t_37",
+      "content": "Follow up on delayed shipment #7891",
+      "project_id": "p_ops",
+      "priority": 2,
+      "due": { "date": "<TODAY-1>", "string": "yesterday", "is_recurring": false }
+    },
+    {
+      "id": "t_38",
+      "content": "Update client billing address",
+      "project_id": "p_finance",
+      "priority": 1,
+      "due": { "date": "<TODAY-1>", "string": "yesterday", "is_recurring": false }
+    },
+    {
+      "id": "t_39",
+      "content": "Proofread newsletter draft",
+      "project_id": "p_work",
+      "priority": 2,
+      "due": { "date": "<TODAY-1>", "string": "yesterday", "is_recurring": false }
+    },
+    {
+      "id": "t_40",
+      "content": "Finalize slide deck for investor update",
+      "project_id": "p_work",
+      "priority": 3,
+      "due": { "date": "<TODAY-1>", "string": "yesterday", "is_recurring": false }
+    },
+    {
+      "id": "t_41",
+      "content": "Daily standup",
+      "project_id": "p_work",
+      "priority": 3,
+      "due": { "date": "<TODAY>", "string": "every weekday", "is_recurring": true }
+    },
+    {
+      "id": "t_42",
+      "content": "Triage incoming support requests",
+      "project_id": "p_ops",
+      "priority": 2,
+      "due": { "date": "<TODAY>", "string": "today", "is_recurring": false }
+    },
+    {
+      "id": "t_43",
+      "content": "Deploy hotfix to production",
+      "project_id": "p_work",
+      "priority": 4,
+      "due": { "date": "<TODAY>", "string": "today", "is_recurring": false }
+    },
+    {
+      "id": "t_44",
+      "content": "Sign updated NDA and return",
+      "project_id": "p_work",
+      "priority": 3,
+      "due": { "date": "<TODAY>", "string": "today", "is_recurring": false }
+    },
+    {
+      "id": "t_45",
+      "content": "Process payroll adjustments",
+      "project_id": "p_finance",
+      "priority": 3,
+      "due": { "date": "<TODAY>", "string": "today", "is_recurring": false }
+    },
+    {
+      "id": "t_46",
+      "content": "Review database migration plan",
+      "project_id": "p_ops",
+      "priority": 2,
+      "due": { "date": "<TODAY>", "string": "today", "is_recurring": false }
+    },
+    {
+      "id": "t_47",
+      "content": "Pick up prescription from pharmacy",
+      "project_id": "p_personal",
+      "priority": 2,
+      "due": { "date": "<TODAY>", "string": "today", "is_recurring": false }
+    },
+    {
+      "id": "t_48",
+      "content": "Send project kickoff email",
+      "project_id": "p_work",
+      "priority": 3,
+      "due": { "date": "<TODAY>", "string": "today", "is_recurring": false }
+    },
+    {
+      "id": "t_49",
+      "content": "Update team calendar with PTO dates",
+      "project_id": "p_work",
+      "priority": 1,
+      "due": { "date": "<TODAY>", "string": "today", "is_recurring": false }
+    },
+    {
+      "id": "t_50",
+      "content": "Run weekly data integrity check",
+      "project_id": "p_ops",
+      "priority": 2,
+      "due": { "date": "<TODAY>", "string": "every Monday", "is_recurring": true }
+    },
+    {
+      "id": "t_51",
+      "content": "Prepare demo environment for client showcase",
+      "project_id": "p_work",
+      "priority": 3,
+      "due": { "date": "<TODAY+1>", "string": "tomorrow", "is_recurring": false }
+    },
+    {
+      "id": "t_52",
+      "content": "Schedule annual equipment maintenance",
+      "project_id": "p_ops",
+      "priority": 1,
+      "due": { "date": "<TODAY+2>", "string": "in 2 days", "is_recurring": false }
+    },
+    {
+      "id": "t_53",
+      "content": "Book flights for upcoming conference",
+      "project_id": "p_personal",
+      "priority": 2,
+      "due": { "date": "<TODAY+3>", "string": "in 3 days", "is_recurring": false }
+    },
+    {
+      "id": "t_54",
+      "content": "Submit final draft of whitepaper",
+      "project_id": "p_work",
+      "priority": 3,
+      "due": { "date": "<TODAY+4>", "string": "in 4 days", "is_recurring": false }
+    },
+    {
+      "id": "t_55",
+      "content": "Review and approve new office layout plans",
+      "project_id": "p_ops",
+      "priority": 1,
+      "due": { "date": "<TODAY+5>", "string": "in 5 days", "is_recurring": false }
+    }
+  ],
+  "completed": [
+    {
+      "id": "c_01",
+      "content": "Finalize vendor selection for catering",
+      "project_id": "p_ops",
+      "priority": 1,
+      "completed_at": "<TODAY-1>T11:20:00Z"
+    },
+    {
+      "id": "c_02",
+      "content": "Merge feature branch for notifications",
+      "project_id": "p_work",
+      "priority": 3,
+      "completed_at": "<TODAY-1>T16:45:00Z"
+    },
+    {
+      "id": "c_03",
+      "content": "Pay utility bill for office",
+      "project_id": "p_finance",
+      "priority": 2,
+      "completed_at": "<TODAY-2>T09:30:00Z"
+    }
+  ]
+}
