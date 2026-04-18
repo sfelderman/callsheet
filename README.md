@@ -71,6 +71,7 @@ Connectors are pluggable data sources. Enable them in `config.yaml`, test with `
 | `home_assistant` | Smart home sensor states + anomalies | HA token |
 | `market` | Stock/fund daily snapshot + news | None (free) |
 | `actual_budget` | Recent transactions, spending, budget alerts | Server password |
+| `exist_io` | Daily journal, mood, tags, and tracked metrics | API token |
 
 ### Writing your own
 

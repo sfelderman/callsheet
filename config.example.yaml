@@ -108,6 +108,29 @@ connectors:
     symbols:
       - VTSAX
 
+  # exist.io — daily journal (mood_note), mood rating, custom tags, and tracked
+  # metrics. Read-only. Grab a personal token from https://exist.io/account/
+  # and put it in .env as EXIST_IO_TOKEN.
+  exist_io:
+    enabled: false
+    token_env: EXIST_IO_TOKEN
+    # How many days of history to pull. Max 31 (Exist API cap). Default 7.
+    lookback_days: 7
+    # Attribute groups to fetch. 'mood' includes the mood_note daily journal.
+    # 'custom' is where your tags live. Other useful groups:
+    # activity, sleep, productivity, health, workouts, finance, food, media.
+    groups:
+      - mood
+      - custom
+    # Optional: explicit attribute names to pull (overrides groups when set).
+    # attributes:
+    #   - mood
+    #   - mood_note
+    #   - steps
+    #   - sleep
+    # Include Exist's auto-generated insights (correlations, anomalies).
+    include_insights: false
+
   garbage_recycling:
     enabled: false
     lookahead_days: 7

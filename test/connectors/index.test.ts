@@ -43,6 +43,10 @@ jest.unstable_mockModule('../../src/connectors/actual-budget.js', () => ({
     .mockReturnValue({ name: 'actual_budget', description: 'test', fetch: jest.fn() }),
   validate: jest.fn().mockReturnValue([]),
 }));
+jest.unstable_mockModule('../../src/connectors/exist-io.js', () => ({
+  create: jest.fn().mockReturnValue({ name: 'exist_io', description: 'test', fetch: jest.fn() }),
+  validate: jest.fn().mockReturnValue([]),
+}));
 jest.unstable_mockModule('../../src/connectors/sun-moon.js', () => ({
   create: jest.fn().mockReturnValue({ name: 'sun_moon', description: 'test', fetch: jest.fn() }),
   validate: jest.fn().mockReturnValue([]),
@@ -55,10 +59,10 @@ beforeEach(() => {
 });
 
 describe('getRegistry', () => {
-  it('should return a Map of all 10 registered connectors', () => {
+  it('should return a Map of all 11 registered connectors', () => {
     const registry = getRegistry();
     expect(registry).toBeInstanceOf(Map);
-    expect(registry.size).toBe(10);
+    expect(registry.size).toBe(11);
   });
 
   it('should contain all expected connector names', () => {
@@ -72,6 +76,7 @@ describe('getRegistry', () => {
       'market',
       'home_assistant',
       'actual_budget',
+      'exist_io',
       'garbage_recycling',
       'sun_moon',
     ];
