@@ -1022,7 +1022,7 @@ export async function generateBrief(
   // Record today's language phrase into its own long-horizon history so
   // tomorrow's brief can avoid repeating it. Lives separately from the
   // shared memory bucket because it needs a longer retention window.
-  recordBriefPhrase(brief, config as unknown as Parameters<typeof recordBriefPhrase>[1]);
+  recordBriefPhrase(brief, config);
 
   // Self-critique: review the brief for quality issues (uses Haiku, ~$0.001)
   const issues = await critiqueBrief(client, brief, dataPayload, outputDir);

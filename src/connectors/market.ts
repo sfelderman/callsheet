@@ -175,7 +175,7 @@ export function create(config: ConnectorConfig): Connector {
 
           results.push({
             symbol,
-            name: (meta.shortName as string) ?? (meta.longName as string) ?? symbol,
+            name: meta.shortName ?? meta.longName ?? symbol,
             price: current ? Math.round(current * 100) / 100 : null,
             dayChangePct: dayChange ? Math.round(dayChange * 100) / 100 : null,
             weekChangePct: weekChange ? Math.round(weekChange * 100) / 100 : null,
