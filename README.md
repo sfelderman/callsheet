@@ -71,6 +71,9 @@ Connectors are pluggable data sources. Enable them in `config.yaml`, test with `
 | `home_assistant` | Smart home sensor states + anomalies | HA token |
 | `market` | Stock/fund daily snapshot + news | None (free) |
 | `actual_budget` | Recent transactions, spending, budget alerts | Server password |
+| `garbage_recycling` | Pickup-day reminders from configured schedules | None (config-driven) |
+| `sun_moon` | Sunrise/sunset, twilight, moon phase | None (local computation) |
+| `language` | Phrase-of-the-day with anti-repeat history | None |
 
 ### Writing your own
 
@@ -133,7 +136,10 @@ callsheet/
 │   │   ├── aviation-weather.ts
 │   │   ├── market.ts
 │   │   ├── home-assistant.ts
-│   │   └── actual-budget.ts
+│   │   ├── actual-budget.ts
+│   │   ├── garbage-recycling.ts
+│   │   ├── sun-moon.ts
+│   │   └── language.ts
 │   └── prompts/
 │       └── system.md              # Claude's instructions (tune this!)
 ├── web/
@@ -190,7 +196,7 @@ Yes. `--preview` saves the PDF. Email it, display it on a tablet, show it on a d
 
 PRs welcome — especially new connectors. See [docs/CONNECTORS.md](docs/CONNECTORS.md).
 
-Some ideas: Slack, GitHub, Fitbit, Anki, Radarr/Sonarr, Notion, CalDAV, garbage/recycling schedules, Withings, Oura Ring, air quality.
+Some ideas: Slack, GitHub, Fitbit, Anki, Radarr/Sonarr, Notion, CalDAV, Withings, Oura Ring, air quality.
 
 ## License
 

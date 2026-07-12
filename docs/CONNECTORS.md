@@ -117,4 +117,4 @@ Some connectors the community might want:
 - **Actual Budget** — already built-in as the `actual_budget` connector
 - **OpenAQ / AirNow** — air quality index
 - **Tides** — for coastal households
-- **Garbage/recycling schedule** — from local municipality calendar
+- **Garbage/recycling schedule** — already built-in as the `garbage_recycling` connector

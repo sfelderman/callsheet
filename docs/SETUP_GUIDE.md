@@ -523,7 +523,7 @@ yarn print
 |----------|---------|-------------|
 | `MODE` | `headless_docker` | `headless_docker` or `headed_docker` |
 | `CRON_SCHEDULE` | `30 6 * * *` | Cron expression for brief generation |
-| `TZ` | `America/Chicago` | Timezone for scheduling |
+| `TZ` | `UTC` | Timezone for scheduling (set to your local zone, e.g. `America/Denver`) |
 | `CONFIG_PATH` | `config.yaml` | Path to config file inside container |
 | `OUTPUT_DIR` | `output` | Path to output directory inside container |
 | `PORT` | `3000` | Dashboard port (headed mode only) |

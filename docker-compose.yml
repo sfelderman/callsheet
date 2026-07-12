@@ -7,7 +7,7 @@ services:
     environment:
       MODE: headless_docker
       CRON_SCHEDULE: "30 6 * * *"
-      TZ: America/Chicago
+      TZ: ${TZ:-UTC}
       # Scheduled briefs print by default (to the printer set in config.yaml).
       # Set to "false" for a UI-only / no-printer deployment.
       PRINT_BRIEF: "true"

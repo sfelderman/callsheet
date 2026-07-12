@@ -41,7 +41,7 @@ COPY config.example.yaml ./config.example.yaml
 
 # Default to headless docker mode
 ENV MODE=headless_docker
-ENV TZ=America/Chicago
+ENV TZ=${TZ:-UTC}
 ENV NODE_ENV=production
 
 EXPOSE 3000

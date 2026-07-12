@@ -23,3 +23,11 @@ reports/
 !.yarn/releases
 !.yarn/sdks
 !.yarn/versions
+
+# OS / editor junk
+.DS_Store
+._*
+*.log
+*.swp
+*.swo
+*~
