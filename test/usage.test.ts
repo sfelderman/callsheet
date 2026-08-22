@@ -131,12 +131,47 @@ describe('logUsage', () => {
     freezeTime('2026-03-15T10:00:00.000Z');
     mockExistsSync.mockReturnValue(false);
 
-    // Opus 4.7: input $15/M, output $75/M (same as Opus 4.0)
+    // Opus 4.7: input $5/M, output $25/M
     usage.logUsage('/out', 'claude-opus-4-7', 'brief', 100_000, 50_000);
 
     const [, content] = mockWriteFileSync.mock.calls[0] as [string, string];
     const written = JSON.parse(content) as { entries: Array<{ cost_usd: number }> };
-    expect(written.entries[0].cost_usd).toBeCloseTo(5.25, 5);
+    expect(written.entries[0].cost_usd).toBeCloseTo(1.75, 5);
+  });
+
+  it('should price the current Opus and Sonnet models', () => {
+    freezeTime('2026-03-15T10:00:00.000Z');
+    mockExistsSync.mockReturnValue(false);
+
+    // Opus 5: $5/M in, $25/M out.
+    usage.logUsage('/out', 'claude-opus-5', 'brief', 1_000_000, 1_000_000);
+    const [, opusContent] = mockWriteFileSync.mock.calls[0] as [string, string];
+    expect(
+      (JSON.parse(opusContent) as { entries: { cost_usd: number }[] }).entries[0].cost_usd,
+    ).toBeCloseTo(30, 5);
+
+    mockWriteFileSync.mockClear();
+    // Sonnet 5: $3/M in, $15/M out.
+    usage.logUsage('/out', 'claude-sonnet-5', 'brief', 1_000_000, 1_000_000);
+    const [, sonnetContent] = mockWriteFileSync.mock.calls[0] as [string, string];
+    expect(
+      (JSON.parse(sonnetContent) as { entries: { cost_usd: number }[] }).entries[0].cost_usd,
+    ).toBeCloseTo(18, 5);
+  });
+
+  it('should estimate an unlisted model from its family rather than assuming Sonnet', () => {
+    freezeTime('2026-03-15T10:00:00.000Z');
+    mockExistsSync.mockReturnValue(false);
+    const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+
+    // An Opus we don't have an entry for should not be billed at Sonnet rates.
+    usage.logUsage('/out', 'claude-opus-99', 'brief', 1_000_000, 1_000_000);
+
+    const [, content] = mockWriteFileSync.mock.calls[0] as [string, string];
+    const written = JSON.parse(content) as { entries: { cost_usd: number }[] };
+    expect(written.entries[0].cost_usd).toBeCloseTo(30, 5);
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('no pricing entry'));
+    logSpy.mockRestore();
   });
 
   it('should calculate cost correctly for Haiku model', () => {

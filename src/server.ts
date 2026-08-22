@@ -70,7 +70,7 @@ export function createApp(): express.Express {
 
       // Build config object
       const config: Record<string, unknown> = {
-        model: body.model ?? 'claude-sonnet-4-20250514',
+        model: body.model ?? 'claude-opus-5',
         printer: body.printer ?? '',
         output_dir: 'output',
         credentials_dir: 'secrets',

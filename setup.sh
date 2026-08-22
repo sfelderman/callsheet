@@ -418,12 +418,12 @@ if [[ "${SKIP_CONFIG:-}" != "true" ]]; then
 
   # --- Model selection ---
   info "Claude model for brief generation:"
-  info "  1) Sonnet — fast, cheap (~\$0.02-0.04/day) [recommended to start]"
-  info "  2) Opus  — deeper analysis (~\$0.15-0.20/day)"
+  info "  1) Sonnet 5 — fast, cheap (~\$0.03-0.06/day) [recommended to start]"
+  info "  2) Opus 5   — deeper analysis (~\$0.06-0.12/day)"
   ask "Choose model (1 or 2)" "1"
   case "$REPLY" in
-    2) MODEL="claude-opus-4-6" ;;
-    *) MODEL="claude-sonnet-4-20250514" ;;
+    2) MODEL="claude-opus-5" ;;
+    *) MODEL="claude-sonnet-5" ;;
   esac
   ok "Model: $MODEL"
 

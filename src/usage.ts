@@ -17,20 +17,39 @@ export interface MonthlyUsage {
 
 /** Model pricing per million tokens (as of 2026) */
 const MODEL_PRICING: Record<string, { input: number; output: number }> = {
-  'claude-sonnet-4-20250514': { input: 3, output: 15 },
+  // Current generation
+  'claude-opus-5': { input: 5, output: 25 },
+  'claude-sonnet-5': { input: 3, output: 15 },
+  'claude-haiku-4-5': { input: 1, output: 5 },
+  'claude-fable-5': { input: 10, output: 50 },
+  // Previous generations, kept so historical usage files still price correctly
+  'claude-opus-4-8': { input: 5, output: 25 },
+  'claude-opus-4-7': { input: 5, output: 25 },
+  'claude-opus-4-6': { input: 5, output: 25 },
   'claude-sonnet-4-6': { input: 3, output: 15 },
+  'claude-sonnet-4-20250514': { input: 3, output: 15 },
   'claude-opus-4-20250514': { input: 15, output: 75 },
-  'claude-opus-4-6': { input: 15, output: 75 },
-  'claude-opus-4-7': { input: 15, output: 75 },
   'claude-haiku-4-5-20251001': { input: 1, output: 5 },
 };
 
-function getDefaultPricing(): { input: number; output: number } {
-  return { input: 3, output: 15 }; // Default to Sonnet pricing
+/**
+ * Price an unlisted model by family rather than silently charging Sonnet
+ * rates. A new Opus was previously billed at Sonnet's price, which understated
+ * the month; the reverse would overstate it.
+ */
+export function getDefaultPricing(model?: string): { input: number; output: number } {
+  if (model?.includes('opus')) return { input: 5, output: 25 };
+  if (model?.includes('haiku')) return { input: 1, output: 5 };
+  if (model?.includes('fable') || model?.includes('mythos')) return { input: 10, output: 50 };
+  return { input: 3, output: 15 }; // Sonnet-tier assumption
 }
 
 function calculateCost(model: string, inputTokens: number, outputTokens: number): number {
-  const pricing = MODEL_PRICING[model] ?? getDefaultPricing();
+  const known = MODEL_PRICING[model];
+  if (!known) {
+    console.log(`  Note: no pricing entry for "${model}" — estimating from model family.`);
+  }
+  const pricing = known ?? getDefaultPricing(model);
   return (inputTokens * pricing.input + outputTokens * pricing.output) / 1_000_000;
 }
 

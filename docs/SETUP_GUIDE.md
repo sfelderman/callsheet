@@ -136,10 +136,10 @@ In `config.yaml`, set the `model` field:
 
 ```yaml
 # Fast and cheap (~$0.02-0.04/day)
-model: claude-sonnet-4-20250514
+model: claude-sonnet-5
 
 # Deeper reasoning, better cross-referencing (~$0.15-0.20/day)
-model: claude-opus-4-6
+model: claude-opus-5
 ```
 
 Start with Sonnet. Switch to Opus after you've dialed in your connectors and context — the quality difference is noticeable in the Executive Brief section, where Claude connects dots across data sources.

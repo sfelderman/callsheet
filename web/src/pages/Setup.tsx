@@ -102,7 +102,7 @@ const CONNECTOR_INFO: {
 export function Setup({ onComplete }: Props) {
   const [step, setStep] = useState<Step>('welcome');
   const [apiKey, setApiKey] = useState('');
-  const [model, setModel] = useState('claude-sonnet-4-20250514');
+  const [model, setModel] = useState('claude-sonnet-5');
   const [enabledConnectors, setEnabledConnectors] = useState<Set<string>>(new Set());
   const [connectorFields, setConnectorFields] = useState<Record<string, Record<string, string>>>(
     {},
@@ -308,43 +308,40 @@ export function Setup({ onComplete }: Props) {
               style={{
                 cursor: 'pointer',
                 border:
-                  model === 'claude-sonnet-4-20250514'
-                    ? '2px solid #2563eb'
-                    : '1px solid #e5e7eb',
+                  model === 'claude-sonnet-5' ? '2px solid #2563eb' : '1px solid #e5e7eb',
               }}
             >
               <input
                 type="radio"
                 name="model"
-                value="claude-sonnet-4-20250514"
-                checked={model === 'claude-sonnet-4-20250514'}
+                value="claude-sonnet-5"
+                checked={model === 'claude-sonnet-5'}
                 onChange={(e) => setModel(e.target.value)}
                 style={{ display: 'none' }}
               />
-              <div style={{ fontWeight: 600 }}>Sonnet</div>
+              <div style={{ fontWeight: 600 }}>Sonnet 5</div>
               <div className="muted">
-                Fast and cheap. ~$0.02-0.04/day. Great for most households.
+                Fast and cheap. ~$0.03-0.06/day. Great for most households.
               </div>
             </label>
             <label
               className="card"
               style={{
                 cursor: 'pointer',
-                border:
-                  model === 'claude-opus-4-6' ? '2px solid #2563eb' : '1px solid #e5e7eb',
+                border: model === 'claude-opus-5' ? '2px solid #2563eb' : '1px solid #e5e7eb',
               }}
             >
               <input
                 type="radio"
                 name="model"
-                value="claude-opus-4-6"
-                checked={model === 'claude-opus-4-6'}
+                value="claude-opus-5"
+                checked={model === 'claude-opus-5'}
                 onChange={(e) => setModel(e.target.value)}
                 style={{ display: 'none' }}
               />
-              <div style={{ fontWeight: 600 }}>Opus</div>
+              <div style={{ fontWeight: 600 }}>Opus 5</div>
               <div className="muted">
-                Deeper reasoning, better cross-referencing. ~$0.15-0.20/day.
+                Deeper reasoning, better cross-referencing. ~$0.06-0.12/day.
               </div>
             </label>
           </div>
