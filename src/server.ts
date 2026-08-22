@@ -5,7 +5,7 @@ import { readFileSync, readdirSync, existsSync, writeFileSync, unlinkSync } from
 import type { Server } from 'node:http';
 import yaml from 'js-yaml';
 import crypto from 'node:crypto';
-import { loadConfig, runPipeline } from './core.js';
+import { loadConfig, runPipeline, DEFAULT_MODEL } from './core.js';
 import { getRegistry } from './connectors/index.js';
 import {
   buildAuthUrl,
@@ -70,7 +70,7 @@ export function createApp(): express.Express {
 
       // Build config object
       const config: Record<string, unknown> = {
-        model: body.model ?? 'claude-opus-5',
+        model: body.model ?? DEFAULT_MODEL,
         printer: body.printer ?? '',
         output_dir: 'output',
         credentials_dir: 'secrets',

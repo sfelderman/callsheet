@@ -28,7 +28,7 @@ import { deriveStationsFromEvents, type AirportAlias } from './airports.js';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 /** Model that writes the brief when config doesn't name one. */
-export const DEFAULT_MODEL = 'claude-opus-5';
+export const DEFAULT_MODEL = 'claude-sonnet-5';
 
 /** Cheap model for the housekeeping passes: memory, self-critique, auto-close. */
 export const CRITIQUE_MODEL = 'claude-haiku-4-5';
