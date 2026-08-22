@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { google } from 'googleapis';
 import type { Connector, ConnectorConfig, ConnectorResult, Check } from '../types.js';
 import { PASS, FAIL, WARN, INFO } from '../test-icons.js';
+import { todayYmd, shiftYmd, zonedDayStart } from '../dates.js';
 import {
   getCredentials,
   resolveCredsFile,
@@ -23,6 +24,22 @@ interface CalendarEvent {
 
 interface CalendarAccount extends GoogleAccount {
   calendar_ids?: string[];
+}
+
+/** An event plus the household member(s) whose calendar it appeared on. */
+interface TaggedEvent extends CalendarEvent {
+  people?: string[];
+}
+
+/** Optional config: label events matching a regex so they can be counted. */
+export interface EventCategory {
+  label: string;
+  pattern: string;
+}
+
+interface FetchOutcome {
+  events: CalendarEvent[];
+  errors: string[];
 }
 
 const WEEKDAY_NAMES = [
@@ -121,7 +138,7 @@ export function relativeDayLabel(todayYmd: string, eventYmd: string, dayOfWeek: 
   return `${dayOfWeek} ${eventYmd} (${-diff} days ago)`;
 }
 
-function simplifyEvent(e: CalendarEvent, tz: string, todayYmd: string) {
+function simplifyEvent(e: TaggedEvent, tz: string, todayYmd: string) {
   const start = e.start ?? {};
   const end = e.end ?? {};
   const rawStart = start.dateTime ?? start.date ?? '';
@@ -147,6 +164,10 @@ function simplifyEvent(e: CalendarEvent, tz: string, todayYmd: string) {
     location: e.location ?? '',
     description: (e.description ?? '').slice(0, 200),
     allDay,
+    // Whose calendar(s) this event came from. An event on two people's
+    // calendars keeps both names, so a shared appointment is one event
+    // attended by two people rather than two events or one person's.
+    people: e.people,
     // Pre-computed so the brief writer never has to derive weekday from an
     // ISO string — that's where the April-20-labelled-Sunday bug came from.
     date: dateLabel,
@@ -156,6 +177,65 @@ function simplifyEvent(e: CalendarEvent, tz: string, todayYmd: string) {
   };
 }
 
+type SimplifiedEvent = ReturnType<typeof simplifyEvent>;
+
+/**
+ * Per-person event tallies computed here rather than left to the brief writer.
+ *
+ * A model asked to count rows in a JSON array gets it wrong often enough to
+ * matter — it has undercounted a person's week by one and overcounted
+ * another's in the same sentence, on data that was completely correct. The
+ * weekday fields above exist for the same reason. Anything the brief states
+ * as a number should be computed here and cited, not derived downstream.
+ */
+export function buildAggregates(
+  buckets: { recent: SimplifiedEvent[]; today: SimplifiedEvent[]; upcoming: SimplifiedEvent[] },
+  categories: EventCategory[],
+): Record<string, unknown> {
+  const byPerson: Record<string, Record<string, unknown>> = {};
+
+  const ensure = (name: string): Record<string, unknown> => {
+    byPerson[name] ??= { recent: 0, today: 0, upcoming: 0 };
+    return byPerson[name];
+  };
+
+  for (const [bucket, events] of Object.entries(buckets)) {
+    for (const ev of events) {
+      for (const person of ev.people ?? []) {
+        const rec = ensure(person);
+        rec[bucket] = (rec[bucket] as number) + 1;
+
+        for (const cat of categories) {
+          let re: RegExp;
+          try {
+            re = new RegExp(cat.pattern, 'i');
+          } catch {
+            continue; // a bad pattern in config shouldn't take the brief down
+          }
+          if (re.test(`${ev.summary} ${ev.location}`)) {
+            const key = `${bucket}_by_category`;
+            const counts = (rec[key] ??= {}) as Record<string, number>;
+            counts[cat.label] = (counts[cat.label] ?? 0) + 1;
+          }
+        }
+      }
+    }
+  }
+
+  return {
+    by_person: byPerson,
+    totals: {
+      recent: buckets.recent.length,
+      today: buckets.today.length,
+      upcoming: buckets.upcoming.length,
+    },
+  };
+}
+
+/** Google caps a page at 250 events and signals more via nextPageToken. */
+const PAGE_SIZE = 250;
+const MAX_PAGES = 20;
+
 async function fetchAccountEvents(
   credsDir: string,
   tokenFile: string,
@@ -163,27 +243,46 @@ async function fetchAccountEvents(
   startDate: Date,
   endDate: Date,
   credsFile?: string,
-): Promise<CalendarEvent[]> {
+): Promise<FetchOutcome> {
   const oauth2 = getCredentials(credsDir, tokenFile, credsFile);
   const calendar = google.calendar({ version: 'v3', auth: oauth2 });
 
   const allEvents: CalendarEvent[] = [];
+  const errors: string[] = [];
   for (const calId of calendarIds) {
     try {
-      const result = await calendar.events.list({
-        calendarId: calId,
-        timeMin: startDate.toISOString(),
-        timeMax: endDate.toISOString(),
-        singleEvents: true,
-        orderBy: 'startTime',
-      });
-      allEvents.push(...((result.data.items ?? []) as CalendarEvent[]));
+      let pageToken: string | undefined;
+      let pages = 0;
+      do {
+        const result = await calendar.events.list({
+          calendarId: calId,
+          timeMin: startDate.toISOString(),
+          timeMax: endDate.toISOString(),
+          singleEvents: true,
+          orderBy: 'startTime',
+          maxResults: PAGE_SIZE,
+          pageToken,
+        });
+        allEvents.push(...((result.data.items ?? []) as CalendarEvent[]));
+        pageToken = result.data.nextPageToken ?? undefined;
+        pages += 1;
+      } while (pageToken && pages < MAX_PAGES);
+
+      if (pageToken) {
+        errors.push(
+          `${calId}: stopped paginating after ${MAX_PAGES} pages — events may be missing`,
+        );
+      }
     } catch (e) {
-      console.log(`  Warning: Failed to fetch calendar ${calId}: ${e}`);
+      // Surfaced in the payload as well as logged: a calendar that silently
+      // stops loading looks identical to a quiet week in the finished brief.
+      const msg = e instanceof Error ? e.message : String(e);
+      console.log(`  Warning: Failed to fetch calendar ${calId}: ${msg}`);
+      errors.push(`${calId}: ${msg}`);
     }
   }
 
-  return allEvents;
+  return { events: allEvents, errors };
 }
 
 export function create(config: ConnectorConfig): Connector {
@@ -194,8 +293,12 @@ export function create(config: ConnectorConfig): Connector {
     async fetch(): Promise<ConnectorResult> {
       const credsDir = (config.credentials_dir as string) ?? 'secrets';
       const lookahead = (config.lookahead_days as number) ?? 7;
-      const lookback = (config.lookback_days as number) ?? 0;
+      // Past events are what a week-in-review and any per-person tally are
+      // built from. Defaulting this to 0 meant the brief was asked to
+      // summarise a week it could not see on six days out of seven.
+      const lookback = (config.lookback_days as number) ?? 7;
       const accounts = config.accounts as CalendarAccount[] | undefined;
+      const categories = (config.event_categories as EventCategory[] | undefined) ?? [];
       const tz =
         (config.timezone as string) ??
         process.env.TZ ??
@@ -204,29 +307,26 @@ export function create(config: ConnectorConfig): Connector {
       // "Today" for the brief is local-wall-clock today in the configured TZ,
       // not UTC. If we used UTC here, a brief running at 4 AM CT on Monday
       // (9 AM UTC — still Monday there) would work, but at 10 PM CT on
-      // Sunday (3 AM UTC Monday) we'd call Sunday's brief "Monday". Forcing
-      // en-CA gives us a clean YYYY-MM-DD in the target TZ.
-      const todayYmd = new Intl.DateTimeFormat('en-CA', {
-        timeZone: tz,
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-      }).format(new Date());
+      // Sunday (3 AM UTC Monday) we'd call Sunday's brief "Monday".
+      const today_ymd = todayYmd(tz);
 
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const todayEnd = new Date(today);
-      todayEnd.setHours(23, 59, 59, 999);
-      const tomorrow = new Date(today);
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      const lookaheadEnd = new Date(today);
-      lookaheadEnd.setDate(lookaheadEnd.getDate() + lookahead);
-      const lookbackStart = new Date(today);
-      lookbackStart.setDate(lookbackStart.getDate() - lookback);
+      // Query boundaries follow the configured zone too. Using Date.setHours
+      // here anchored the window to whatever timezone the process happened to
+      // run in, so a UTC-defaulted container fetched a window offset from the
+      // one whose labels the brief displayed.
+      const today = zonedDayStart(today_ymd, tz);
+      const tomorrow = zonedDayStart(shiftYmd(today_ymd, 1), tz);
+      const todayEnd = new Date(tomorrow.getTime() - 1);
+      const lookaheadEnd = zonedDayStart(shiftYmd(today_ymd, lookahead), tz);
+      const lookbackStart = zonedDayStart(shiftYmd(today_ymd, -lookback), tz);
 
-      let allTodayEvents: CalendarEvent[] = [];
-      let allUpcomingEvents: CalendarEvent[] = [];
-      let allRecentEvents: CalendarEvent[] = [];
+      const allTodayEvents: TaggedEvent[] = [];
+      const allUpcomingEvents: TaggedEvent[] = [];
+      const allRecentEvents: TaggedEvent[] = [];
+      const fetchErrors: string[] = [];
+
+      const tag = (events: CalendarEvent[], person?: string): TaggedEvent[] =>
+        events.map((e) => ({ ...e, people: person ? [person] : undefined }));
 
       if (accounts && accounts.length > 0) {
         // Multi-account mode
@@ -252,8 +352,11 @@ export function create(config: ConnectorConfig): Connector {
             credsFile,
           );
 
-          allTodayEvents.push(...todayEvents);
-          allUpcomingEvents.push(...upcomingEvents);
+          allTodayEvents.push(...tag(todayEvents.events, acct.name));
+          allUpcomingEvents.push(...tag(upcomingEvents.events, acct.name));
+          fetchErrors.push(
+            ...[...todayEvents.errors, ...upcomingEvents.errors].map((m) => `${acct.name}/${m}`),
+          );
 
           if (lookback > 0) {
             const recent = await fetchAccountEvents(
@@ -264,7 +367,8 @@ export function create(config: ConnectorConfig): Connector {
               today,
               credsFile,
             );
-            allRecentEvents.push(...recent);
+            allRecentEvents.push(...tag(recent.events, acct.name));
+            fetchErrors.push(...recent.errors.map((m) => `${acct.name}/${m}`));
           }
         }
       } else {
@@ -273,7 +377,7 @@ export function create(config: ConnectorConfig): Connector {
         const tokenFile = 'token_calendar.json';
         const calIds = (config.calendar_ids as string[]) ?? ['primary'];
 
-        allTodayEvents = await fetchAccountEvents(
+        const todayEvents = await fetchAccountEvents(
           credsDir,
           tokenFile,
           calIds,
@@ -281,7 +385,7 @@ export function create(config: ConnectorConfig): Connector {
           todayEnd,
           credsFile,
         );
-        allUpcomingEvents = await fetchAccountEvents(
+        const upcomingEvents = await fetchAccountEvents(
           credsDir,
           tokenFile,
           calIds,
@@ -289,8 +393,12 @@ export function create(config: ConnectorConfig): Connector {
           lookaheadEnd,
           credsFile,
         );
+        allTodayEvents.push(...tag(todayEvents.events));
+        allUpcomingEvents.push(...tag(upcomingEvents.events));
+        fetchErrors.push(...todayEvents.errors, ...upcomingEvents.errors);
+
         if (lookback > 0) {
-          allRecentEvents = await fetchAccountEvents(
+          const recent = await fetchAccountEvents(
             credsDir,
             tokenFile,
             calIds,
@@ -298,37 +406,68 @@ export function create(config: ConnectorConfig): Connector {
             today,
             credsFile,
           );
+          allRecentEvents.push(...tag(recent.events));
+          fetchErrors.push(...recent.errors);
         }
       }
 
-      // Deduplicate by event ID and sort chronologically
-      function dedupeAndSort(events: CalendarEvent[]): CalendarEvent[] {
-        const seen = new Set<string>();
-        return events
-          .filter((e) => {
-            if (seen.has(e.id)) return false;
-            seen.add(e.id);
-            return true;
-          })
-          .sort((a, b) => {
-            const aStart = a.start?.dateTime ?? a.start?.date ?? '';
-            const bStart = b.start?.dateTime ?? b.start?.date ?? '';
-            return aStart.localeCompare(bStart);
-          });
+      // Merge duplicates by event ID, then sort chronologically.
+      //
+      // The same event on two household members' calendars is one event with
+      // two attendees. Dropping the second copy (the old behaviour) lost the
+      // fact that both people were there, so a shared commitment counted for
+      // only one of them.
+      function mergeAndSort(events: TaggedEvent[]): TaggedEvent[] {
+        const byId = new Map<string, TaggedEvent>();
+        for (const e of events) {
+          const existing = byId.get(e.id);
+          if (!existing) {
+            byId.set(e.id, { ...e, people: e.people ? [...e.people] : undefined });
+            continue;
+          }
+          for (const person of e.people ?? []) {
+            existing.people ??= [];
+            if (!existing.people.includes(person)) existing.people.push(person);
+          }
+        }
+        return [...byId.values()].sort((a, b) => {
+          const aStart = a.start?.dateTime ?? a.start?.date ?? '';
+          const bStart = b.start?.dateTime ?? b.start?.date ?? '';
+          return aStart.localeCompare(bStart);
+        });
       }
 
-      const todayEvents = dedupeAndSort(allTodayEvents);
-      const upcomingEvents = dedupeAndSort(allUpcomingEvents);
-      const recentEvents = dedupeAndSort(allRecentEvents);
+      const todayEvents = mergeAndSort(allTodayEvents).map((e) => simplifyEvent(e, tz, today_ymd));
+      const upcomingEvents = mergeAndSort(allUpcomingEvents).map((e) =>
+        simplifyEvent(e, tz, today_ymd),
+      );
+      const recentEvents = mergeAndSort(allRecentEvents).map((e) =>
+        simplifyEvent(e, tz, today_ymd),
+      );
+
+      const aggregates = buildAggregates(
+        { recent: recentEvents, today: todayEvents, upcoming: upcomingEvents },
+        categories,
+      );
+      aggregates.window = {
+        recent_from: shiftYmd(today_ymd, -lookback),
+        recent_to_exclusive: today_ymd,
+        today: today_ymd,
+        upcoming_through: shiftYmd(today_ymd, lookahead),
+      };
 
       const data: Record<string, unknown> = {
         timezone: tz,
-        today_ymd: todayYmd,
-        today: todayEvents.map((e) => simplifyEvent(e, tz, todayYmd)),
-        upcoming: upcomingEvents.map((e) => simplifyEvent(e, tz, todayYmd)),
+        today_ymd,
+        today: todayEvents,
+        upcoming: upcomingEvents,
+        aggregates,
       };
       if (lookback > 0) {
-        data.recent = recentEvents.map((e) => simplifyEvent(e, tz, todayYmd));
+        data.recent = recentEvents;
+      }
+      if (fetchErrors.length > 0) {
+        data.fetch_errors = fetchErrors;
       }
 
       return {
@@ -341,10 +480,18 @@ export function create(config: ConnectorConfig): Connector {
             : '') +
           "Use today's events for the schedule section. Use upcoming for the lookahead section — " +
           'highlight things that need preparation. ' +
-          "**CRITICAL: always use each event's pre-computed `dayOfWeek`, `date`, `timeLabel`, and `whenLabel` fields. " +
+          "Each event's `people` array lists the household member(s) whose calendar it is on; " +
+          'an event with two names is one shared commitment, not two. ' +
+          '**CRITICAL: any number you state about how many events someone had must be read from ' +
+          '`aggregates.by_person`, which is computed from this data. Do NOT count events yourself — ' +
+          'hand-counting has produced both over- and under-counts on correct data.** ' +
+          "**Also always use each event's pre-computed `dayOfWeek`, `date`, `timeLabel`, and `whenLabel` fields. " +
           'Do NOT derive weekday names from raw ISO `start`/`end` strings — that math has been wrong before ' +
           '(April 20 was labeled "Sunday" when it was Monday). The pre-computed fields are authoritative ' +
-          `and already resolved in the configured timezone (${tz}).**`,
+          `and already resolved in the configured timezone (${tz}).**` +
+          (fetchErrors.length > 0
+            ? ` NOTE: ${fetchErrors.length} calendar(s) failed to load — see \`fetch_errors\`. Data may be incomplete.`
+            : ''),
         data,
         priorityHint: 'high',
       };

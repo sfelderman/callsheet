@@ -255,6 +255,139 @@ describe('google-calendar connector', () => {
 
       expect(result.description).toContain('14 days');
     });
+
+    it('should follow nextPageToken until the calendar is exhausted', async () => {
+      setupCredsAndToken();
+      mockEventsList
+        .mockResolvedValueOnce({
+          data: {
+            items: [{ id: 'p1', summary: 'Page one', start: { date: '2026-03-26' } }],
+            nextPageToken: 'tok-2',
+          },
+        })
+        .mockResolvedValueOnce({
+          data: { items: [{ id: 'p2', summary: 'Page two', start: { date: '2026-03-26' } }] },
+        })
+        .mockResolvedValue({ data: { items: [] } });
+
+      const conn = create({ enabled: true, calendar_ids: ['primary'] });
+      await conn.fetch();
+
+      const tokens = mockEventsList.mock.calls.map(
+        (c) => (c[0] as { pageToken?: string }).pageToken,
+      );
+      expect(tokens).toContain('tok-2');
+      expect((mockEventsList.mock.calls[0][0] as { maxResults?: number }).maxResults).toBe(250);
+    });
+
+    it('should surface per-calendar failures in the payload', async () => {
+      setupCredsAndToken();
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+      mockEventsList.mockRejectedValue(new Error('403 Forbidden'));
+
+      const conn = create({ enabled: true, calendar_ids: ['primary'] });
+      const result = await conn.fetch();
+
+      const errors = result.data.fetch_errors as string[];
+      expect(errors.length).toBeGreaterThan(0);
+      expect(errors[0]).toContain('403 Forbidden');
+      expect(result.description).toContain('failed to load');
+      consoleSpy.mockRestore();
+    });
+
+    it('should tag events with the account they came from and merge shared events', async () => {
+      setupCredsAndToken();
+      // One event on both calendars (shared invite) + one unique to Person 2.
+      const shared = { id: 'shared-1', summary: 'Shared dinner', start: { date: '2026-03-26' } };
+      const solo = { id: 'solo-1', summary: 'Solo errand', start: { date: '2026-03-26' } };
+      mockEventsList.mockImplementation((args: unknown) => {
+        const { timeMin } = args as { timeMin: string };
+        // Only return events for the "today" window to keep the assertion simple.
+        void timeMin;
+        return Promise.resolve({ data: { items: [shared, solo] } });
+      });
+
+      const conn = create({
+        enabled: true,
+        accounts: [
+          { name: 'Person 1', calendar_ids: ['primary'] },
+          { name: 'Person 2', calendar_ids: ['primary'] },
+        ],
+      });
+      const result = await conn.fetch();
+
+      const today = result.data.today as { id?: string; summary: string; people: string[] }[];
+      const sharedEvent = today.find((e) => e.summary === 'Shared dinner');
+      expect(sharedEvent?.people).toEqual(['Person 1', 'Person 2']);
+      // Merged, not duplicated.
+      expect(today.filter((e) => e.summary === 'Shared dinner')).toHaveLength(1);
+    });
+
+    it('should count events per person so the brief never has to', async () => {
+      setupCredsAndToken();
+      mockEventsList.mockImplementation((args: unknown) => {
+        const { timeMax } = args as { timeMin: string; timeMax: string };
+        // The recent window is the only one that ends at start-of-today.
+        const isRecent = new Date(timeMax).getUTCHours() !== 23;
+        void isRecent;
+        return Promise.resolve({
+          data: {
+            items: [
+              { id: 'a', summary: 'Lesson one', start: { date: '2026-03-24' } },
+              { id: 'b', summary: 'Lesson two', start: { date: '2026-03-25' } },
+              { id: 'c', summary: 'Dentist', start: { date: '2026-03-25' } },
+            ],
+          },
+        });
+      });
+
+      const conn = create({
+        enabled: true,
+        accounts: [{ name: 'Person 1', calendar_ids: ['primary'] }],
+        event_categories: [{ label: 'Lessons', pattern: 'lesson' }],
+      });
+      const result = await conn.fetch();
+
+      const agg = result.data.aggregates as {
+        by_person: Record<string, Record<string, unknown>>;
+        totals: Record<string, number>;
+        window: Record<string, string>;
+      };
+      const person = agg.by_person['Person 1'];
+      expect(person.today).toBe(3);
+      expect((person.today_by_category as Record<string, number>).Lessons).toBe(2);
+      expect(agg.totals.today).toBe(3);
+      expect(agg.window.recent_to_exclusive).toBe(agg.window.today);
+    });
+
+    it('should not let a malformed category pattern break the fetch', async () => {
+      setupCredsAndToken();
+      mockEventsList.mockResolvedValue({
+        data: { items: [{ id: 'x', summary: 'Anything', start: { date: '2026-03-26' } }] },
+      });
+
+      const conn = create({
+        enabled: true,
+        accounts: [{ name: 'Person 1', calendar_ids: ['primary'] }],
+        event_categories: [{ label: 'Broken', pattern: '([unclosed' }],
+      });
+      const result = await conn.fetch();
+
+      const agg = result.data.aggregates as { by_person: Record<string, Record<string, unknown>> };
+      expect(agg.by_person['Person 1'].today).toBe(1);
+      expect(agg.by_person['Person 1'].today_by_category).toBeUndefined();
+    });
+
+    it('should include recent events by default (week-in-review needs them)', async () => {
+      setupCredsAndToken();
+      mockEventsList.mockResolvedValue({ data: { items: [] } });
+
+      const conn = create({ enabled: true, calendar_ids: ['primary'] });
+      const result = await conn.fetch();
+
+      expect(result.data.recent).toBeDefined();
+      expect(result.description).toContain('past 7 days');
+    });
   });
 
   describe('formatInTz', () => {
