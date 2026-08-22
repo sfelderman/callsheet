@@ -1227,7 +1227,10 @@ export async function generateBrief(
   }
 
   // Save memory for future briefs
-  await saveMemory(client, model, dataPayload, outputDir);
+  // Extracting a handful of facts from data that has already been read is
+  // exactly the kind of work the cheap model is for. Running it on the brief
+  // model cost more per day than the brief itself did on some runs.
+  await saveMemory(client, CRITIQUE_MODEL, dataPayload, outputDir);
 
   // Record today's language phrase into its own long-horizon history so
   // tomorrow's brief can avoid repeating it. Lives separately from the
