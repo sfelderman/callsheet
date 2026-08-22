@@ -1171,11 +1171,11 @@ export async function generateBrief(
       () =>
         client.messages.create({
           model,
-          // Headroom over what a brief actually needs. At the old 4096 a long
-          // day could truncate the JSON, and a truncated brief was
-          // indistinguishable from a failed one by the time it reached the
-          // parser.
-          max_tokens: 8192,
+          // Current models reason before answering, and that reasoning is
+          // drawn from the same budget as the response, so this has to cover
+          // both. A brief is only a couple of thousand tokens; the rest is
+          // headroom so a long day can't truncate the JSON.
+          max_tokens: 32_000,
           system: systemPrompt,
           messages: [
             {
