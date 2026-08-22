@@ -1174,8 +1174,9 @@ export async function generateBrief(
           // Current models reason before answering, and that reasoning is
           // drawn from the same budget as the response, so this has to cover
           // both. A brief is only a couple of thousand tokens; the rest is
-          // headroom so a long day can't truncate the JSON.
-          max_tokens: 32_000,
+          // headroom so a long day can't truncate the JSON. Kept under the
+          // SDK's ~21k ceiling for non-streaming requests.
+          max_tokens: 16_000,
           system: systemPrompt,
           messages: [
             {
