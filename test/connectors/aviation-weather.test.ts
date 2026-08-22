@@ -564,9 +564,27 @@ describe('aviation-weather connector', () => {
       expect(checks.filter(([icon]) => icon === INFO).length).toBeGreaterThanOrEqual(2);
     });
 
-    it('fails with no stations', () => {
-      const checks = validate({ enabled: true, stations: [] });
+    it('fails with no stations only when calendar derivation is off', () => {
+      const checks = validate({ enabled: true, stations: [], derive_stations: false });
       expect(checks.some(([icon]) => icon === FAIL)).toBe(true);
+    });
+
+    it('accepts no stations when they will be read from the calendar', () => {
+      const checks = validate({ enabled: true, stations: [] });
+      expect(checks.some(([icon]) => icon === FAIL)).toBe(false);
+      expect(checks.some(([, label]) => label.includes('read from calendar events'))).toBe(true);
+    });
+
+    it('warns when a station looks like an IATA code', () => {
+      const checks = validate({ enabled: true, stations: ['DEN'] });
+      const warning = checks.find(([icon]) => icon === WARN);
+      expect(warning?.[1]).toContain('IATA');
+      expect(warning?.[2]).toContain('KDEN');
+    });
+
+    it('warns when a station is not a plausible identifier', () => {
+      const checks = validate({ enabled: true, stations: ['NOT-AN-AIRPORT'] });
+      expect(checks.some(([, label]) => label.includes('not a valid identifier shape'))).toBe(true);
     });
 
     it('warns when first station is non-ICAO and no wfo override', () => {

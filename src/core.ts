@@ -23,6 +23,7 @@ import { recordBriefPhrase } from './connectors/language.js';
 import { renderPdf } from './render.js';
 import { logUsage } from './usage.js';
 import { todayYmd, shiftYmd, formatLongDate } from './dates.js';
+import { deriveStationsFromEvents, type AirportAlias } from './airports.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -184,46 +185,125 @@ function withDeadline<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
   });
 }
 
+/** Fetch one connector under a deadline, logging the outcome. */
+function runConnector(
+  conn: { name: string; fetch: () => Promise<ConnectorResult> },
+  timeoutMs: number,
+): Promise<ConnectorResult> {
+  return withDeadline(conn.fetch(), timeoutMs, conn.name).then(
+    (result) => {
+      console.log(`  ✓ ${conn.name}`);
+      return result;
+    },
+    (err) => {
+      // Re-throw so allSettled records it as rejected with the right name attached.
+      // Bare objects (@actual-app/api throws `{reason: 'x'}`) would stringify
+      // to "[object Object]" — JSON-serialise them so the brief shows why.
+      const e = err instanceof Error ? err : new Error(formatUnknownError(err));
+      (e as Error & { __connector?: string }).__connector = conn.name;
+      throw e;
+    },
+  );
+}
+
+/** True when the calendar should be consulted for which airports to fetch weather for. */
+export function usesCalendarDerivedStations(config: CallsheetConfig): boolean {
+  const connectors = config.connectors ?? {};
+  const aviation = connectors.aviation_weather;
+  return Boolean(
+    aviation?.enabled && connectors.google_calendar?.enabled && aviation.derive_stations !== false,
+  );
+}
+
+/**
+ * Merge the airports named in calendar events into the aviation config.
+ *
+ * Configured stations are kept — they are the household's home fields — and
+ * anything the calendar mentions is added on top, so a lesson booked at an
+ * unfamiliar field still gets a forecast.
+ */
+export function withDerivedStations(
+  config: CallsheetConfig,
+  calendarResult: ConnectorResult | null,
+): CallsheetConfig {
+  const connectors = config.connectors ?? {};
+  const aviation = connectors.aviation_weather;
+  if (!aviation || !calendarResult) return config;
+
+  const data = calendarResult.data as {
+    today?: { summary?: string; location?: string }[];
+    upcoming?: { summary?: string; location?: string }[];
+  };
+  const events = [...(data.today ?? []), ...(data.upcoming ?? [])];
+
+  const derived = deriveStationsFromEvents(
+    events,
+    (aviation.airport_aliases as AirportAlias[] | undefined) ?? [],
+    aviation.activity_pattern as string | undefined,
+  );
+  if (derived.length === 0) return config;
+
+  const configured = (aviation.stations as string[] | undefined) ?? [];
+  const merged = [...new Set([...configured, ...derived])];
+  if (merged.length === configured.length) return config;
+
+  console.log(`  Airports from calendar: ${derived.join(', ')}`);
+  return {
+    ...config,
+    connectors: {
+      ...connectors,
+      aviation_weather: { ...aviation, stations: merged, derived_stations: derived },
+    },
+  };
+}
+
 export async function fetchAll(
   config: CallsheetConfig,
 ): Promise<{ results: ConnectorResult[]; issues: ConnectorIssue[] }> {
   // On Week in Review days, ensure the calendar connector has at least a
   // 7-day lookback so the retrospective has past events to reference. Done as
   // a per-run override on a shallow clone — never mutate the caller's config.
-  const effectiveConfig = withWeeklyReviewOverrides(config);
-  const { connectors, initErrors } = loadConnectors(effectiveConfig as Record<string, unknown>);
+  const withReview = withWeeklyReviewOverrides(config);
   const results: ConnectorResult[] = [];
   const issues: ConnectorIssue[] = [];
+  const timeoutMs = config.connector_timeout_ms ?? DEFAULT_CONNECTOR_TIMEOUT_MS;
+
+  // When aviation weather is on, the calendar goes first so the airports it
+  // names can be folded into the weather request. Left to a static list, the
+  // stations drift out of date and the brief reports conditions for fields
+  // nobody flies from any more.
+  let calendarResult: ConnectorResult | null = null;
+  let effectiveConfig = withReview;
+  if (usesCalendarDerivedStations(withReview)) {
+    const { connectors: pre } = loadConnectors(withReview as Record<string, unknown>);
+    const calendar = pre.find((c) => c.name === 'google_calendar');
+    if (calendar) {
+      try {
+        calendarResult = await runConnector(calendar, timeoutMs);
+        results.push(calendarResult);
+      } catch (err) {
+        issues.push({ connector: 'google_calendar', error: formatUnknownError(err) });
+      }
+      effectiveConfig = withDerivedStations(withReview, calendarResult);
+    }
+  }
+
+  const { connectors: loaded, initErrors } = loadConnectors(
+    effectiveConfig as Record<string, unknown>,
+  );
+  const connectors = calendarResult ? loaded.filter((c) => c.name !== 'google_calendar') : loaded;
 
   // Surface init errors as connector issues
   for (const err of initErrors) {
     issues.push({ connector: err.connector, error: err.error });
   }
 
-  const timeoutMs = config.connector_timeout_ms ?? DEFAULT_CONNECTOR_TIMEOUT_MS;
-
-  // Fire all connector fetches in parallel. Each is wrapped in a deadline so a
-  // single hanging connector cannot stall the brief. Promise.allSettled ensures
-  // one connector's failure never short-circuits the others.
+  // Fire the remaining connector fetches in parallel. Each is wrapped in a
+  // deadline so a single hanging connector cannot stall the brief.
+  // Promise.allSettled ensures one connector's failure never short-circuits
+  // the others.
   console.log(`  Fetching ${connectors.length} connector(s) in parallel...`);
-  const settled = await Promise.allSettled(
-    connectors.map((conn) =>
-      withDeadline(conn.fetch(), timeoutMs, conn.name).then(
-        (result) => {
-          console.log(`  \u2713 ${conn.name}`);
-          return result;
-        },
-        (err) => {
-          // Re-throw so allSettled records it as rejected with the right name attached.
-          // Bare objects (@actual-app/api throws `{reason: 'x'}`) would stringify
-          // to "[object Object]" — JSON-serialise them so the brief shows why.
-          const e = err instanceof Error ? err : new Error(formatUnknownError(err));
-          (e as Error & { __connector?: string }).__connector = conn.name;
-          throw e;
-        },
-      ),
-    ),
-  );
+  const settled = await Promise.allSettled(connectors.map((conn) => runConnector(conn, timeoutMs)));
 
   for (let i = 0; i < settled.length; i++) {
     const outcome = settled[i];

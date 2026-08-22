@@ -99,9 +99,21 @@ connectors:
 
   aviation_weather:
     enabled: false
+    # Fields you always want weather for. Airports named in calendar events are
+    # added on top of these automatically, so a lesson booked somewhere new
+    # still gets a forecast and this list doesn't have to be maintained by hand.
+    # Use ICAO (KDEN) or FAA (06C) identifiers, not IATA (DEN).
     stations: []
+    # derive_stations: false     # Only use the stations listed above
+    # Only consider events that look like flying when reading airports off the
+    # calendar, so an unrelated event at an address near a field is ignored.
+    # activity_pattern: "flight|lesson|checkride"
+    # Map place names as they appear in event locations to the station that
+    # serves them — for fields whose events never spell out the identifier.
+    # airport_aliases:
+    #   - { match: "Northfield Aviation", station: K123 }
     # Optional — first ICAO station is used as the AFD source by default.
-    # wfo: KLOT                  # Pin a different WFO for the Area Forecast Discussion
+    # wfo: KDEN                  # Pin a different WFO for the Area Forecast Discussion
     # pirep_radius_nm: 100       # PIREP search radius around stations[0]
     # pirep_age_hours: 2         # How recent PIREPs must be
 

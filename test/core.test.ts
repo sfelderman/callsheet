@@ -359,6 +359,101 @@ describe('isWeeklyReviewDay', () => {
   });
 });
 
+describe('usesCalendarDerivedStations', () => {
+  const both = {
+    connectors: {
+      google_calendar: { enabled: true },
+      aviation_weather: { enabled: true },
+    },
+  };
+
+  it('is on when both the calendar and aviation weather are enabled', () => {
+    expect(core.usesCalendarDerivedStations(both)).toBe(true);
+  });
+
+  it('is off when either connector is disabled', () => {
+    expect(
+      core.usesCalendarDerivedStations({
+        connectors: { google_calendar: { enabled: false }, aviation_weather: { enabled: true } },
+      }),
+    ).toBe(false);
+    expect(
+      core.usesCalendarDerivedStations({
+        connectors: { google_calendar: { enabled: true }, aviation_weather: { enabled: false } },
+      }),
+    ).toBe(false);
+    expect(core.usesCalendarDerivedStations({})).toBe(false);
+  });
+
+  it('can be turned off explicitly', () => {
+    expect(
+      core.usesCalendarDerivedStations({
+        connectors: {
+          google_calendar: { enabled: true },
+          aviation_weather: { enabled: true, derive_stations: false },
+        },
+      }),
+    ).toBe(false);
+  });
+});
+
+describe('withDerivedStations', () => {
+  const baseConfig = {
+    connectors: {
+      google_calendar: { enabled: true },
+      aviation_weather: { enabled: true, stations: ['KAAA'] },
+    },
+  };
+
+  const calendarResult = (events: { summary?: string; location?: string }[]) => ({
+    source: 'google_calendar',
+    description: '',
+    data: { today: events, upcoming: [] },
+    priorityHint: 'high' as const,
+  });
+
+  it('adds airports named in events to the configured stations', () => {
+    const out = core.withDerivedStations(
+      baseConfig,
+      calendarResult([{ summary: 'Lesson at KBBB', location: '' }]),
+    );
+    expect(out.connectors?.aviation_weather.stations).toEqual(['KAAA', 'KBBB']);
+    expect(out.connectors?.aviation_weather.derived_stations).toEqual(['KBBB']);
+  });
+
+  it('leaves the config untouched when events name no airports', () => {
+    const out = core.withDerivedStations(
+      baseConfig,
+      calendarResult([{ summary: 'Dentist', location: 'Elm St' }]),
+    );
+    expect(out).toBe(baseConfig);
+  });
+
+  it('does not duplicate an airport already configured', () => {
+    const out = core.withDerivedStations(
+      baseConfig,
+      calendarResult([{ summary: 'Lesson at KAAA', location: '' }]),
+    );
+    expect(out).toBe(baseConfig);
+  });
+
+  it('handles a missing calendar result or aviation connector', () => {
+    expect(core.withDerivedStations(baseConfig, null)).toBe(baseConfig);
+    expect(core.withDerivedStations({ connectors: {} }, calendarResult([]))).toEqual({
+      connectors: {},
+    });
+  });
+
+  it('never mutates the config it was given', () => {
+    const out = core.withDerivedStations(
+      baseConfig,
+      calendarResult([{ summary: 'Lesson at KBBB', location: '' }]),
+    );
+    expect(baseConfig.connectors.aviation_weather.stations).toEqual(['KAAA']);
+    expect(out).not.toBe(baseConfig);
+  });
+});
+
 describe('withWeeklyReviewOverrides', () => {
   it('returns the input unchanged when not a review day', () => {
     const cfg: CallsheetConfig = {

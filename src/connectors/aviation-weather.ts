@@ -384,11 +384,13 @@ export function create(config: ConnectorConfig): Connector {
       const stationStr = stations.join(',');
       const pirepRadius = (config.pirep_radius_nm as number | undefined) ?? DEFAULT_PIREP_RADIUS;
       const pirepAge = (config.pirep_age_hours as number | undefined) ?? DEFAULT_PIREP_AGE_HOURS;
-      // Allow user to pin a specific WFO for the AFD; otherwise default to
-      // the first configured station (e.g. KLOT). Most WFO IDs map cleanly
-      // from a nearby ICAO airport — KLOT for Chicago, KMKE for Milwaukee.
+      // Allow the user to pin a specific WFO for the AFD; otherwise use the
+      // first ICAO-shaped station, since most WFO IDs map cleanly from a
+      // nearby airport. If nothing qualifies the AFD is simply skipped —
+      // better than falling back to a region the household has no connection
+      // to, which is what a hardcoded default did.
       const afdStation =
-        (config.wfo as string | undefined) ?? (stations[0].startsWith('K') ? stations[0] : 'KLOT');
+        (config.wfo as string | undefined) ?? stations.find((s) => /^K[A-Z]{3}$/.test(s));
 
       // Fire all endpoints in parallel. Each is wrapped in safeFetch* so any
       // single failure degrades that one product without breaking the whole
@@ -431,7 +433,12 @@ export function create(config: ConnectorConfig): Connector {
           ),
         ),
         safeFetchJson<Record<string, unknown>[]>(`${AWC_API}/cwa?format=json`, 'CWA'),
-        safeFetchText(`${AWC_API}/fcstdisc?cwa=${encodeURIComponent(afdStation)}&type=afd`, 'AFD'),
+        afdStation
+          ? safeFetchText(
+              `${AWC_API}/fcstdisc?cwa=${encodeURIComponent(afdStation)}&type=afd`,
+              'AFD',
+            )
+          : Promise.resolve(null),
       ]);
 
       // METAR is the floor — without it the whole connector is degraded.
@@ -505,7 +512,7 @@ export function create(config: ConnectorConfig): Connector {
       // AIRMET / SIGMET filtering: keep only items whose polygon contains or
       // is within HAZARD_PROXIMITY_NM of any user station. The API returns
       // every active hazard nationwide; without this filter the payload is
-      // huge and almost all of it is irrelevant to a Chicago-area pilot.
+      // huge and almost all of it is irrelevant to any one pilot.
       const airSigmetReports: HazardPolygonReport[] = [];
       for (const a of airSigmetRaw ?? []) {
         const coords = a.coords as { lat: number; lon: number }[] | undefined;
@@ -527,7 +534,7 @@ export function create(config: ConnectorConfig): Connector {
 
       // G-AIRMETs come per-forecast-hour (0/3/6/9/12). Collapse runs of the
       // same (hazard, product) over the same affected stations into a single
-      // report so Claude sees "IFR active hours 0/3/6 over KLOT" instead of
+      // report so Claude sees "IFR active hours 0/3/6 over the home field" instead of
       // five near-duplicate entries.
       const gAirmetByKey = new Map<string, HazardPolygonReport>();
       for (const list of gAirmetRaws) {
@@ -631,7 +638,7 @@ export function create(config: ConnectorConfig): Connector {
           'Flag IFR/LIFR/MVFR, gusting winds above 15kt, or ceilings below 3000. ' +
           'For SIGMETs/AIRMETs/G-AIRMETs/CWAs in the data, surface anything that affects a station the user is flying from/to today. ' +
           'Use PIREPs to ground-truth the forecast — if the TAF says VFR but a recent PIREP reports IFR, mention it. ' +
-          'Density altitude: only flag when daAboveFieldFt exceeds 1500 ft (hot-and-high — uncommon for Chicago in spring/fall). ' +
+          'Density altitude: only flag when daAboveFieldFt exceeds 1500 ft (hot-and-high; uncommon outside summer in temperate regions). ' +
           'Area Forecast Discussion (afd) is plain text from the local NWS forecaster — quote a single relevant sentence about ' +
           'aviation impacts if it adds value beyond the structured data, otherwise skip it. ' +
           "For VFR with light winds at lesson time and no hazards, a simple 'good flying weather' suffices. " +
@@ -660,8 +667,28 @@ export function validate(config: ConnectorConfig): Check[] {
   if (stations.length) {
     checks.push([PASS, `${stations.length} station(s) configured`, '']);
     for (const s of stations) checks.push([INFO, `  \u2192 ${s}`, '']);
-  } else {
+
+    // A three-letter code here is almost always an IATA code pasted from a
+    // booking site. Weather endpoints want the ICAO or FAA identifier, and
+    // the wrong one returns no data rather than an error.
+    for (const s of stations.filter((s) => /^[A-Z]{3}$/.test(s))) {
+      checks.push([
+        WARN,
+        `Station "${s}" looks like an IATA code`,
+        `Weather lookups need the ICAO or FAA identifier \u2014 try "K${s}"`,
+      ]);
+    }
+    for (const s of stations.filter((s) => !/^[A-Z0-9]{3,4}$/.test(s))) {
+      checks.push([WARN, `Station "${s}" is not a valid identifier shape`, '3-4 alphanumerics']);
+    }
+  } else if (config.derive_stations === false) {
     checks.push([FAIL, 'No stations configured', '']);
+  } else {
+    checks.push([
+      INFO,
+      'No stations configured \u2014 airports will be read from calendar events',
+      'Add `stations` for fields you always want, or `airport_aliases` to map place names',
+    ]);
   }
 
   const wfo = config.wfo as string | undefined;
@@ -671,7 +698,7 @@ export function validate(config: ConnectorConfig): Check[] {
     checks.push([
       WARN,
       `First station ${stations[0]} is non-ICAO — AFD may not resolve`,
-      'Set wfo: KLOT (or your local WFO) explicitly',
+      'Set wfo explicitly to your local WFO',
     ]);
   }
 
