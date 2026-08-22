@@ -1,5 +1,36 @@
 # callsheet
 
+## 1.5.1
+
+### Patch Changes
+
+- 9f7d6d3: Bound how long the brief model reasons before writing.
+
+  Left unset, effort defaults to full depth, and on a full day's payload the
+  model spent an entire token budget thinking and returned no brief at all. The
+  judgement calls in a brief are modest — what to include, how to phrase it — and
+  the facts now arrive pre-computed, so it does not need to deliberate at that
+  length.
+
+- a60866c: Cite the count when the data provides one.
+
+  The rule forbidding hand-counted figures was read as a preference for vague
+  ones, so a brief said "logged multiple flight lessons" where the aggregate said
+  three. The point was never to avoid numbers, only to avoid invented ones.
+
+- 650977e: Run memory extraction on the cheap model.
+
+  It was using whichever model writes the brief, and since it is sent the same
+  full payload, it cost roughly as much per day as the brief itself. Summarising
+  data that has already been read is what the small model is for.
+
+- 9978acb: Default the brief to Sonnet.
+
+  It is the better fit for a job that runs unattended every morning: the accuracy
+  work moved counting and identifiers out of the model's hands, so the extra
+  reasoning of a larger model buys less here than it costs. Opus remains a
+  one-line change in config.
+
 ## 1.5.0
 
 ### Minor Changes
