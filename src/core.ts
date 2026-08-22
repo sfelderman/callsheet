@@ -1180,10 +1180,15 @@ export async function generateBrief(
           model,
           // Current models reason before answering, and that reasoning is
           // drawn from the same budget as the response, so this has to cover
-          // both. A brief is only a couple of thousand tokens; the rest is
-          // headroom so a long day can't truncate the JSON. Kept under the
-          // SDK's ~21k ceiling for non-streaming requests.
-          max_tokens: 16_000,
+          // both. Kept under the SDK's ~21k ceiling for non-streaming
+          // requests.
+          max_tokens: 20_000,
+          // Without an explicit effort the model reasons at full depth, and on
+          // a payload this size it spent an entire 16k budget thinking and
+          // returned no brief at all. The judgement calls here are modest —
+          // what to include and how to phrase it — and the facts arrive
+          // pre-computed, so it does not need to deliberate at that length.
+          output_config: { effort: 'medium' },
           system: systemPrompt,
           messages: [
             {
