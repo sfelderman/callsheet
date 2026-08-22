@@ -34,12 +34,15 @@ export const DEFAULT_MODEL = 'claude-opus-5';
 export const CRITIQUE_MODEL = 'claude-haiku-4-5';
 
 /**
- * How much of the raw payload the self-critique sees. It has to be able to
- * find the numbers the brief cites, so this is sized to fit a day's data
- * rather than a token budget — Haiku's context is far larger, and the pass
- * costs a fraction of a cent either way.
+ * How much of the raw payload the self-critique sees.
+ *
+ * Sized to fit a whole day's data rather than to a token budget. A reviewer
+ * that only sees part of the payload reports everything past the cut as
+ * unsupported, and those false findings feed straight into the next day's
+ * prompt as things to correct. Haiku's context is far larger than this and
+ * the pass costs a fraction of a cent either way.
  */
-const CRITIQUE_PAYLOAD_CHARS = 20_000;
+const CRITIQUE_PAYLOAD_CHARS = 200_000;
 
 // ---------------------------------------------------------------------------
 // RuntimeErrors — global collector for any error conditions during a run.
@@ -674,7 +677,11 @@ export async function critiqueBrief(
         '- Factual accuracy: anything the brief asserts that the raw data does not support — a count that does not match the data, ' +
         'a name or identifier that appears nowhere in the payload, a date or weekday that contradicts the event, an invented detail. ' +
         'Verify every number in the brief by finding it in the data. This is the most important category: a brief that reads well ' +
-        'but states a wrong number is worse than a clumsy one that is correct.\n' +
+        'but states a wrong number is worse than a clumsy one that is correct. ' +
+        'Two cautions before you report one: `recent` and `upcoming` cover different periods, so check a statement about what ' +
+        'already happened against `recent` alone and one about what is coming against `upcoming` alone; and search the whole ' +
+        'payload before calling something unsupported, including every calendar bucket — do not report a claim as unsupported ' +
+        'merely because you did not come across it.\n' +
         '- Duplication: same topic appearing in multiple sections (e.g. exec brief AND tasks)\n' +
         '- Poor grouping: tasks that jump between unrelated topics instead of clustering by theme\n' +
         "- Missing data: tasks, calendar events, or emails in the raw data that should have been surfaced but weren't\n" +
