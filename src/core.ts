@@ -11,13 +11,34 @@ import { fileURLToPath } from 'node:url';
 import { execSync } from 'node:child_process';
 import Anthropic from '@anthropic-ai/sdk';
 import yaml from 'js-yaml';
-import type { CallsheetConfig, ConnectorResult, Brief, AutoCloseRecommendation } from './types.js';
+import type {
+  CallsheetConfig,
+  ConnectorResult,
+  Brief,
+  AutoCloseRecommendation,
+  HouseholdMember,
+} from './types.js';
 import { loadConnectors } from './connectors/index.js';
 import { recordBriefPhrase } from './connectors/language.js';
 import { renderPdf } from './render.js';
 import { logUsage } from './usage.js';
+import { todayYmd, shiftYmd, formatLongDate } from './dates.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+
+/** Model that writes the brief when config doesn't name one. */
+export const DEFAULT_MODEL = 'claude-opus-5';
+
+/** Cheap model for the housekeeping passes: memory, self-critique, auto-close. */
+export const CRITIQUE_MODEL = 'claude-haiku-4-5';
+
+/**
+ * How much of the raw payload the self-critique sees. It has to be able to
+ * find the numbers the brief cites, so this is sized to fit a day's data
+ * rather than a token budget — Haiku's context is far larger, and the pass
+ * costs a fraction of a cent either way.
+ */
+const CRITIQUE_PAYLOAD_CHARS = 20_000;
 
 // ---------------------------------------------------------------------------
 // RuntimeErrors — global collector for any error conditions during a run.
@@ -84,13 +105,24 @@ export function stripJsonCodeFences(text: string): string {
 }
 
 export function loadConfig(configPath: string): CallsheetConfig {
+  let config: CallsheetConfig;
   try {
-    return yaml.load(readFileSync(configPath, 'utf-8')) as CallsheetConfig;
+    config = yaml.load(readFileSync(configPath, 'utf-8')) as CallsheetConfig;
   } catch {
     throw new Error(
       `Config not found: ${configPath}. Copy config.example.yaml to config.yaml and edit it.`,
     );
   }
+
+  // Adopt the household's zone process-wide so every later "what day is it"
+  // agrees — output filenames, the brief's own date, memory keys and the
+  // scheduler. Previously filenames followed UTC while the visible dates
+  // followed the configured zone, which only lines up for part of the day.
+  if (config?.timezone) {
+    process.env.TZ = config.timezone;
+  }
+
+  return config;
 }
 
 export interface ConnectorIssue {
@@ -301,13 +333,18 @@ async function generateMemoryInsights(
   try {
     const response = await client.messages.create({
       model,
-      max_tokens: 512,
+      // 512 truncated the JSON array mid-string on most runs, so the parse
+      // failed and a day's memory was silently lost.
+      max_tokens: 2048,
       system:
         "You extract key facts worth remembering for tomorrow's brief. " +
         'Return a JSON array of 3-8 short strings. Focus on: ' +
         'ongoing situations (deliveries, upcoming deadlines, bills due soon), ' +
         'notable patterns (spending spikes, inbox growth), ' +
         'things to follow up on tomorrow. ' +
+        'Do NOT record counts, totals or per-person tallies — they are only true on the day ' +
+        "they were computed and tomorrow's brief recomputes them from live data. Record the " +
+        'underlying fact without the number. ' +
         'CRITICAL: You are given ONLY the raw connector data (emails, tasks, calendar, etc.). ' +
         'Every insight you return MUST be directly traceable to a specific item in this data — ' +
         'a specific email, task, calendar event, or transaction. ' +
@@ -348,7 +385,7 @@ export async function saveMemory(
   const memDir = getMemoryDir(outputDir);
   mkdirSync(memDir, { recursive: true });
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayYmd();
   const insights = await generateMemoryInsights(client, model, dataPayload, outputDir);
 
   if (insights.length) {
@@ -421,6 +458,7 @@ function loadRecentCritiques(outputDir: string): CritiqueEntry[] {
 
 /** Issue categories the self-critique prompt uses as prefixes. */
 const CRITIQUE_CATEGORIES = [
+  'Factual accuracy',
   'Duplication',
   'Verbosity',
   'Missing data',
@@ -434,6 +472,8 @@ const RECURRING_THRESHOLD_DAYS = 3;
 
 /** Specific guidance per category — what the model should actually do differently. */
 const CATEGORY_REMEDIES: Record<CritiqueCategory, string> = {
+  'Factual accuracy':
+    'Statements in the brief did not match the underlying data. Before returning, re-check every number, name, date and identifier against the raw payload. Counts must come from a structured aggregate, never from your own tally; identifiers must be copied from the data, never recalled.',
   Duplication:
     'The SAME topic keeps landing in multiple sections. Before you return the brief, walk each Executive Brief item and delete it if the same topic also appears in Tasks, Email Highlights, or Upcoming. Pick ONE home per topic and live with the choice.',
   Verbosity:
@@ -513,12 +553,16 @@ export async function critiqueBrief(
 ): Promise<string[]> {
   try {
     const response = await client.messages.create({
-      model: 'claude-haiku-4-5-20251001', // Use Haiku for cheap self-review
-      max_tokens: 512,
+      model: CRITIQUE_MODEL, // Use Haiku for cheap self-review
+      max_tokens: 1024,
       system:
         'You are a quality reviewer for a daily household brief. ' +
-        'Analyze the brief for structural issues. Return a JSON array of 0-5 short strings describing problems found. ' +
-        'Check for:\n' +
+        'Analyze the brief against the raw data it was built from. Return a JSON array of 0-5 short strings describing problems found. ' +
+        'Prefix each string with its category. Check for:\n' +
+        '- Factual accuracy: anything the brief asserts that the raw data does not support — a count that does not match the data, ' +
+        'a name or identifier that appears nowhere in the payload, a date or weekday that contradicts the event, an invented detail. ' +
+        'Verify every number in the brief by finding it in the data. This is the most important category: a brief that reads well ' +
+        'but states a wrong number is worse than a clumsy one that is correct.\n' +
         '- Duplication: same topic appearing in multiple sections (e.g. exec brief AND tasks)\n' +
         '- Poor grouping: tasks that jump between unrelated topics instead of clustering by theme\n' +
         "- Missing data: tasks, calendar events, or emails in the raw data that should have been surfaced but weren't\n" +
@@ -530,14 +574,14 @@ export async function critiqueBrief(
           role: 'user',
           content:
             `Today's brief:\n${JSON.stringify(brief, null, 2)}\n\n` +
-            `Raw data (key sources):\n${dataPayload.slice(0, 6000)}`,
+            `Raw data (key sources):\n${dataPayload.slice(0, CRITIQUE_PAYLOAD_CHARS)}`,
         },
       ],
     });
 
     logUsage(
       outputDir,
-      'claude-haiku-4-5-20251001',
+      CRITIQUE_MODEL,
       'critique',
       response.usage.input_tokens,
       response.usage.output_tokens,
@@ -549,7 +593,7 @@ export async function critiqueBrief(
     if (issues.length) {
       const critiqueDir = join(outputDir, FEEDBACK_DIR);
       mkdirSync(critiqueDir, { recursive: true });
-      const today = new Date().toISOString().slice(0, 10);
+      const today = todayYmd();
       const entry: CritiqueEntry = { date: today, issues };
       writeFileSync(join(critiqueDir, `critique_${today}.json`), JSON.stringify(entry, null, 2));
     }
@@ -569,9 +613,7 @@ export async function critiqueBrief(
 
 function loadPreviousBrief(outputDir: string): { brief: Brief; label: string } | null {
   // Always diff against yesterday — reruns today should act like a fresh first run
-  const yesterday = new Date();
-  yesterday.setDate(yesterday.getDate() - 1);
-  const dateStr = yesterday.toISOString().slice(0, 10);
+  const dateStr = shiftYmd(todayYmd(), -1);
   const briefPath = join(outputDir, `callsheet_${dateStr}.json`);
   try {
     if (existsSync(briefPath)) {
@@ -614,7 +656,9 @@ function buildDiffContext(prev: { brief: Brief; label: string }): string {
   ctx += "- Highlight what's NEW or CHANGED\n";
   ctx += '- Follow up on items still relevant\n';
   ctx += '- Avoid repeating identical insights\n';
-  ctx += '- Note resolved items (tasks done, events passed)\n\n';
+  ctx += '- Note resolved items (tasks done, events passed)\n';
+  ctx += 'This is a summary of what was WRITTEN yesterday, not data. Never copy a number, ';
+  ctx += "count, identifier or date out of it — take those from today's payload.\n\n";
   for (const [heading, items] of Object.entries(summary)) {
     ctx += `${heading}:\n`;
     for (const item of items) {
@@ -636,7 +680,7 @@ async function detectResolvableTasks(
 ): Promise<AutoCloseRecommendation[]> {
   try {
     const response = await client.messages.create({
-      model: 'claude-haiku-4-5-20251001',
+      model: CRITIQUE_MODEL,
       max_tokens: 512,
       system:
         'You identify Todoist tasks that should be CLOSED because another data source proves they are resolved. ' +
@@ -657,7 +701,7 @@ async function detectResolvableTasks(
 
     logUsage(
       outputDir,
-      'claude-haiku-4-5-20251001',
+      CRITIQUE_MODEL,
       'auto_close',
       response.usage.input_tokens,
       response.usage.output_tokens,
@@ -716,7 +760,7 @@ function saveAutoCloseLog(closed: AutoCloseRecommendation[], outputDir: string):
   if (!closed.length) return;
   const logDir = join(outputDir, 'auto_close');
   mkdirSync(logDir, { recursive: true });
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayYmd();
   writeFileSync(
     join(logDir, `closed_${today}.json`),
     JSON.stringify({ date: today, closed }, null, 2),
@@ -728,9 +772,7 @@ function loadRecentAutoCloses(outputDir: string): AutoCloseRecommendation[] {
   if (!existsSync(logDir)) return [];
 
   // Load yesterday's auto-closes to report in today's brief
-  const yesterday = new Date();
-  yesterday.setDate(yesterday.getDate() - 1);
-  const dateStr = yesterday.toISOString().slice(0, 10);
+  const dateStr = shiftYmd(todayYmd(), -1);
   const logPath = join(logDir, `closed_${dateStr}.json`);
 
   try {
@@ -806,6 +848,48 @@ export function isWeeklyReviewDay(config: CallsheetConfig, now: Date = new Date(
   return target !== null && now.getDay() === target;
 }
 
+/**
+ * Render the household roster for the prompt.
+ *
+ * The roster is the answer to "who is this brief about". Without it the only
+ * people the writer knows are the ones with connector accounts, so a member
+ * who has none is invisible even when their name is all over the calendar.
+ */
+export function buildHouseholdContext(household?: HouseholdMember[]): string {
+  if (!household || household.length === 0) return '';
+
+  let out = '\n\n## Household members\n\n';
+  out +=
+    'These are the people this brief is about. Some of them have no calendar, ' +
+    'inbox or task list of their own — they still live here and still appear in ' +
+    "other people's events. Never assume the household is only the account holders, " +
+    "and never attribute a person's activity to whoever's calendar it happens to sit on.\n\n";
+
+  for (const m of household) {
+    const parts = [m.role, m.notes].filter(Boolean).join(' — ');
+    out += `- **${m.name}**${parts ? `: ${parts}` : ''}\n`;
+  }
+
+  const linked = household.filter(
+    (m) => m.calendar_account ?? m.gmail_account ?? m.todoist_account,
+  );
+  if (linked.length > 0) {
+    out += '\nConnector accounts map to people as follows:\n\n';
+    for (const m of linked) {
+      const links = [
+        m.calendar_account && `calendar "${m.calendar_account}"`,
+        m.gmail_account && `gmail "${m.gmail_account}"`,
+        m.todoist_account && `todoist "${m.todoist_account}"`,
+      ]
+        .filter(Boolean)
+        .join(', ');
+      out += `- ${m.name} → ${links}\n`;
+    }
+  }
+
+  return out;
+}
+
 function loadPrompt(config: CallsheetConfig): string {
   const promptPath = join(__dirname, 'prompts', 'system.md');
   let prompt: string;
@@ -814,6 +898,8 @@ function loadPrompt(config: CallsheetConfig): string {
   } catch {
     throw new Error(`Prompt not found: ${promptPath}`);
   }
+
+  prompt += buildHouseholdContext(config.household);
 
   const context = config.context ?? {};
   if (Object.keys(context).length > 0) {
@@ -950,18 +1036,13 @@ export async function generateBrief(
   }
 
   const client = new Anthropic({ apiKey });
-  const model = config.model ?? 'claude-sonnet-4-20250514';
+  const model = config.model ?? DEFAULT_MODEL;
   const drainedErrors = runtimeErrors.drain();
   const systemPrompt =
     loadPrompt(config) + buildConnectorIssuesContext(connectorIssues, drainedErrors);
 
   const today = new Date();
-  const dateStr = today.toLocaleDateString('en-US', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
+  const dateStr = formatLongDate(todayYmd(config.timezone, today));
   const weekly = isWeeklyReviewDay(config, today);
 
   // Previous-brief diff context runs every day, weekly review or not — the
@@ -1010,6 +1091,11 @@ export async function generateBrief(
 
     const text = stripJsonCodeFences((response.content[0] as { type: 'text'; text: string }).text);
     brief = JSON.parse(text) as Brief;
+
+    // The heading is a fact, not a judgement call, so it is set here rather
+    // than taken from the model. Left to the writer it drifted: briefs went
+    // out pairing the correct weekday with the following day's date.
+    brief.title = dateStr;
   } catch (e) {
     console.error(`  Brief generation failed: ${e}`);
     console.log('  Generating error brief with cached data...');
@@ -1055,7 +1141,7 @@ export async function generateBrief(
 
 export function saveDataPayload(dataPayload: string, outputDir: string): string {
   mkdirSync(outputDir, { recursive: true });
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayYmd();
   const path = join(outputDir, `connector_data_${today}.json`);
   writeFileSync(path, dataPayload);
   return path;
@@ -1063,7 +1149,7 @@ export function saveDataPayload(dataPayload: string, outputDir: string): string 
 
 export function saveBrief(brief: Brief, outputDir: string): string {
   mkdirSync(outputDir, { recursive: true });
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayYmd();
   const path = join(outputDir, `callsheet_${today}.json`);
   writeFileSync(path, JSON.stringify(brief, null, 2));
   return path;
@@ -1108,7 +1194,7 @@ export async function runPipeline(
   console.log(`  Data: ${dataPath}`);
 
   // Generate
-  console.log(`Generating brief via Claude (${config.model ?? 'claude-sonnet-4-20250514'})...`);
+  console.log(`Generating brief via Claude (${config.model ?? DEFAULT_MODEL})...`);
   let brief: Brief;
   try {
     brief = await generateBrief(config, dataPayload, connectorIssues);

@@ -1,8 +1,14 @@
 # callsheet config
 # Copy to config.yaml and customize for your household.
 
-# Claude model. Sonnet = fast + cheap (~$0.02/day). Opus = deeper insights (~$0.15/day).
-model: claude-sonnet-4-20250514
+# Claude model. Sonnet 5 = fast + cheap (~$0.03/day). Opus 5 = deeper insights (~$0.08/day).
+model: claude-sonnet-5
+
+# IANA timezone for the household. Sets the brief's date, output filenames,
+# connector query windows and the scheduler. Falls back to the TZ environment
+# variable, then the system zone. Set it explicitly — a container defaulting
+# to UTC will otherwise date things a few hours off from the household's day.
+timezone: America/New_York
 
 # CUPS printer name. Run `lpstat -p -d` to find yours. Leave empty for --preview only.
 printer: ""
@@ -45,6 +51,15 @@ connectors:
     credentials_dir: secrets
     credentials_file: credentials.json   # shared OAuth app — one app for all accounts
     lookahead_days: 7
+    # How many days of past events to include. Needed for the week-in-review
+    # and for the per-person counts below. Defaults to 7.
+    lookback_days: 7
+    # Optional. Label recurring kinds of event so the brief can cite a count
+    # instead of tallying them itself. `pattern` is a case-insensitive regex
+    # matched against each event's summary and location.
+    # event_categories:
+    #   - { label: Lessons, pattern: "lesson" }
+    #   - { label: Appointments, pattern: "appt|appointment|Dr\\." }
     # Multi-account: each person gets their own OAuth token + calendar list.
     # All accounts use the shared credentials_file above unless overridden.
     accounts:
@@ -140,6 +155,25 @@ connectors:
     label_prefix: Español            # short label prefix used in the brief
     level: "A1-A2"                   # CEFR level or informal tag
     history_days: 30                 # how far back to remember phrases
+
+# ---------------------------------------------------------------------------
+# Household members
+# ---------------------------------------------------------------------------
+# Everyone the brief is about. List people here even if they have no accounts
+# of their own — a child, a guest, a visiting student. Without an entry the
+# brief has no idea they exist, so their events read as belonging to whoever's
+# calendar happens to carry them.
+#
+# Use `*_account` only when someone's name here differs from the matching
+# `accounts[].name` under a connector below.
+household:
+  - name: Person 1
+    role: self
+  - name: Person 2
+    role: partner
+  - name: Person 3
+    role: guest
+    notes: Staying with us this year; has no calendar or email of their own.
 
 # ---------------------------------------------------------------------------
 # Household context

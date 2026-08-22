@@ -70,6 +70,12 @@ jest.unstable_mockModule('../src/usage.js', () => ({
 // Import after mocks
 const core = await import('../src/core.js');
 
+/**
+ * The brief's title is computed from the date, not taken from the model, so
+ * tests assert its shape rather than whatever title the mocked response used.
+ */
+const DATE_TITLE = /^\w+day, \w+ \d{1,2}, \d{4}$/;
+
 // Helper to create mock API responses with usage data
 function mockApiResponse(text: string) {
   return {
@@ -125,6 +131,43 @@ describe('stripJsonCodeFences', () => {
   it('strips fences when the model adds leading commentary', () => {
     const input = "Here's the JSON you asked for:\n```json\n[1,2,3]\n```";
     expect(core.stripJsonCodeFences(input)).toBe('[1,2,3]');
+  });
+});
+
+describe('buildHouseholdContext', () => {
+  it('returns nothing when no household is configured', () => {
+    expect(core.buildHouseholdContext(undefined)).toBe('');
+    expect(core.buildHouseholdContext([])).toBe('');
+  });
+
+  it('lists every member, including one with no accounts of their own', () => {
+    const out = core.buildHouseholdContext([
+      { name: 'Person 1', role: 'self' },
+      { name: 'Person 3', role: 'guest', notes: 'No calendar or email of their own.' },
+    ]);
+
+    expect(out).toContain('## Household members');
+    expect(out).toContain('**Person 1**: self');
+    expect(out).toContain('**Person 3**: guest — No calendar or email of their own.');
+    // The whole point: a member without accounts must not be treated as absent.
+    expect(out).toContain('no calendar, inbox or task list of their own');
+  });
+
+  it('maps connector account names to people when they differ', () => {
+    const out = core.buildHouseholdContext([
+      { name: 'Person 1', calendar_account: 'p1-cal', todoist_account: 'p1-todo' },
+      { name: 'Person 2' },
+    ]);
+
+    expect(out).toContain('Person 1 → calendar "p1-cal", todoist "p1-todo"');
+    // Person 2 has no links, so they get no mapping line.
+    expect(out).not.toContain('Person 2 →');
+  });
+
+  it('omits the mapping section entirely when nobody has linked accounts', () => {
+    const out = core.buildHouseholdContext([{ name: 'Person 1' }]);
+    expect(out).toContain('**Person 1**');
+    expect(out).not.toContain('Connector accounts map to people');
   });
 });
 
@@ -963,8 +1006,43 @@ describe('generateBrief', () => {
 
     const brief = await core.generateBrief(minimalConfig, '{"data": "test"}');
 
-    expect(brief.title).toBe('Morning Brief');
+    // The title is overwritten with a computed date — the model's own attempt
+    // at it drifted a day on a sixth of briefs.
+    expect(brief.title).toMatch(/^\w+day, \w+ \d{1,2}, \d{4}$/);
+    expect(brief.title).not.toBe('Morning Brief');
     expect(brief.sections).toHaveLength(1);
+  });
+
+  it('should date the brief itself rather than trusting the model', async () => {
+    const briefJson = JSON.stringify({
+      title: 'Tuesday, January 1, 1999',
+      sections: [{ heading: 'Overview', body: 'All clear.' }],
+    });
+    mockMessagesCreate
+      .mockResolvedValueOnce(mockApiResponse(briefJson))
+      .mockResolvedValueOnce(mockApiResponse('["insight"]'))
+      .mockResolvedValueOnce(mockApiResponse('[]'));
+    mockReadFileSync.mockImplementation((path: unknown) => {
+      const p = path as string;
+      if (p.includes('system.md')) return 'You are a morning brief generator.';
+      return '{}';
+    });
+    mockExistsSync.mockReturnValue(false);
+    mockReaddirSync.mockReturnValue([]);
+
+    const brief = await core.generateBrief(
+      { ...minimalConfig, timezone: 'America/Chicago' },
+      '{"data": "test"}',
+    );
+
+    const expected = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/Chicago',
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    }).format(new Date());
+    expect(brief.title).toBe(expected);
   });
 
   it('should strip code fences from brief response', async () => {
@@ -987,7 +1065,7 @@ describe('generateBrief', () => {
     mockReaddirSync.mockReturnValue([]);
 
     const brief = await core.generateBrief(minimalConfig, '{}');
-    expect(brief.title).toBe('Fenced Brief');
+    expect(brief.title).toMatch(DATE_TITLE);
   });
 
   it('should throw if ANTHROPIC_API_KEY not set', async () => {
@@ -1153,7 +1231,7 @@ describe('generateBrief', () => {
     mockReaddirSync.mockReturnValue([]);
 
     const brief = await core.generateBrief(minimalConfig, '{}');
-    expect(brief.title).toBe('Retry Brief');
+    expect(brief.title).toMatch(DATE_TITLE);
     // Should have been called twice for the brief (retry) + memory + critique
     expect(mockMessagesCreate).toHaveBeenCalledTimes(4);
   }, 30_000);
@@ -1254,7 +1332,7 @@ describe('generateBrief', () => {
     });
 
     const brief = await core.generateBrief(minimalConfig, '{"data": "test"}');
-    expect(brief.title).toBe('Memory Brief');
+    expect(brief.title).toMatch(DATE_TITLE);
 
     // The system prompt should contain memory context
     const firstCall = mockMessagesCreate.mock.calls[0] as unknown[];
@@ -1303,7 +1381,7 @@ describe('generateBrief', () => {
     });
 
     const brief = await core.generateBrief(minimalConfig, '{}');
-    expect(brief.title).toBe('Feedback Brief');
+    expect(brief.title).toMatch(DATE_TITLE);
 
     const firstCall = mockMessagesCreate.mock.calls[0] as unknown[];
     const opts = firstCall[0] as { system: string };
@@ -1363,7 +1441,7 @@ describe('generateBrief', () => {
     mockReaddirSync.mockReturnValue([]);
 
     const brief = await core.generateBrief(minimalConfig, '{}');
-    expect(brief.title).toBe('Diff Brief');
+    expect(brief.title).toMatch(DATE_TITLE);
 
     // The user message should contain previous brief context
     const firstCall = mockMessagesCreate.mock.calls[0] as unknown[];
@@ -1426,7 +1504,7 @@ describe('generateBrief', () => {
 
     try {
       const brief = await core.generateBrief(autoCloseConfig, '{"todoist": "data"}');
-      expect(brief.title).toBe('Auto-close Brief');
+      expect(brief.title).toMatch(DATE_TITLE);
 
       // Verify Todoist close API was called
       expect(mockFetch).toHaveBeenCalledTimes(1);
@@ -1496,7 +1574,7 @@ describe('generateBrief', () => {
 
     try {
       const brief = await core.generateBrief(autoCloseConfig, '{}');
-      expect(brief.title).toBe('No Token Brief');
+      expect(brief.title).toMatch(DATE_TITLE);
       // fetch should NOT have been called (no token)
       expect(mockFetch).not.toHaveBeenCalled();
     } finally {
@@ -1565,7 +1643,7 @@ describe('generateBrief', () => {
     mockReaddirSync.mockReturnValue([]);
 
     const brief = await core.generateBrief(minimalConfig, '{}');
-    expect(brief.title).toBe('Rate Limited Brief');
+    expect(brief.title).toMatch(DATE_TITLE);
     // 3 attempts for brief + 1 memory + 1 critique = 5
     expect(mockMessagesCreate).toHaveBeenCalledTimes(5);
   }, 60_000);
@@ -1705,7 +1783,7 @@ describe('runPipeline', () => {
 
     const result = await core.runPipeline(pipelineConfig);
 
-    expect(result.brief.title).toBe('Pipeline Brief');
+    expect(result.brief.title).toMatch(DATE_TITLE);
     expect(result.pdfPath).toBe('/tmp/test.pdf');
     expect(result.jsonPath).toMatch(/callsheet_.*\.json$/);
     expect(result.dataPath).toMatch(/connector_data_.*\.json$/);
@@ -1725,7 +1803,7 @@ describe('runPipeline', () => {
 
     const result = await core.runPipeline(pipelineConfig, { preview: true });
 
-    expect(result.brief.title).toBe('Pipeline Brief');
+    expect(result.brief.title).toMatch(DATE_TITLE);
     // Should NOT have called lp
     expect(mockExecSync).not.toHaveBeenCalled();
 
@@ -1743,7 +1821,7 @@ describe('runPipeline', () => {
 
     const result = await core.runPipeline(noPrinterConfig);
 
-    expect(result.brief.title).toBe('Pipeline Brief');
+    expect(result.brief.title).toMatch(DATE_TITLE);
     expect(mockExecSync).not.toHaveBeenCalled();
 
     consoleSpy.mockRestore();
@@ -1793,7 +1871,7 @@ describe('runPipeline', () => {
     const consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
 
     const result = await core.runPipeline({ ...pipelineConfig, printer: '' });
-    expect(result.brief.title).toBe('Issues Brief');
+    expect(result.brief.title).toMatch(DATE_TITLE);
 
     // Connector issues should have been passed to generateBrief
     const firstCall = mockMessagesCreate.mock.calls[0] as unknown[];
@@ -1979,7 +2057,7 @@ describe('runPipeline', () => {
     };
 
     const brief = await core.generateBrief(config, '{}');
-    expect(brief.title).toBe('AutoClose Brief');
+    expect(brief.title).toMatch(DATE_TITLE);
 
     // The system prompt should contain auto-close context
     const firstCall = mockMessagesCreate.mock.calls[0] as unknown[];
@@ -2091,7 +2169,7 @@ describe('runPipeline', () => {
     const consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
 
     const brief = await core.generateBrief(autoCloseConfig, '{}');
-    expect(brief.title).toBe('No Close Brief');
+    expect(brief.title).toMatch(DATE_TITLE);
 
     const logs = consoleSpy.mock.calls.map((c) => c[0] as string);
     expect(logs.some((l) => l.includes('No tasks to auto-close'))).toBe(true);
@@ -2126,7 +2204,7 @@ describe('runPipeline', () => {
     const consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
 
     const brief = await core.generateBrief(autoCloseConfig, '{}');
-    expect(brief.title).toBe('Detection Fail Brief');
+    expect(brief.title).toMatch(DATE_TITLE);
 
     consoleSpy.mockRestore();
   });
@@ -2180,7 +2258,7 @@ describe('runPipeline', () => {
 
     try {
       const brief = await core.generateBrief(autoCloseConfig, '{}');
-      expect(brief.title).toBe('Close Fail Brief');
+      expect(brief.title).toMatch(DATE_TITLE);
     } finally {
       globalThis.fetch = originalFetch;
       delete process.env.TODOIST_TOKEN_PERSON1;
@@ -2236,7 +2314,7 @@ describe('runPipeline', () => {
 
     try {
       const brief = await core.generateBrief(autoCloseConfig, '{}');
-      expect(brief.title).toBe('Non-ok Close Brief');
+      expect(brief.title).toMatch(DATE_TITLE);
       // Should NOT save auto-close log since nothing was closed
     } finally {
       globalThis.fetch = originalFetch;

@@ -36,11 +36,40 @@ export interface BriefExtra {
   instruction: string;
 }
 
+/**
+ * A person the brief is about.
+ *
+ * Connector accounts only cover household members who have their own calendar,
+ * inbox or task list. Anyone else — a child, a guest, a visiting student —
+ * previously existed nowhere the brief writer could see, so their events were
+ * read as belonging to whoever's calendar carried them. Listing people here
+ * makes the household explicit and independent of which services they use.
+ */
+export interface HouseholdMember {
+  name: string;
+  /** Their relationship to the household, e.g. "partner", "guest". */
+  role?: string;
+  /** Anything the brief should know when writing about them. */
+  notes?: string;
+  /** Names of the matching `accounts[].name` entries, when they differ. */
+  calendar_account?: string;
+  gmail_account?: string;
+  todoist_account?: string;
+}
+
 export interface CallsheetConfig {
   model?: string;
   printer?: string;
   output_dir?: string;
   credentials_dir?: string;
+  /**
+   * IANA timezone for the household, e.g. "America/Chicago". Used for the
+   * brief's date, output filenames, connector query windows and the
+   * scheduler. Falls back to `process.env.TZ`, then the system zone.
+   */
+  timezone?: string;
+  /** Everyone the brief is about, including people with no connector accounts. */
+  household?: HouseholdMember[];
   context?: Record<string, string>;
   connectors?: Record<string, ConnectorConfig>;
   extras?: BriefExtra[];

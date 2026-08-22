@@ -26,6 +26,7 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Connector, ConnectorConfig, ConnectorResult, Check, Brief } from '../types.js';
 import { PASS, INFO, WARN } from '../test-icons.js';
+import { todayYmd, shiftYmd } from '../dates.js';
 
 interface LanguageHistoryEntry {
   date: string;
@@ -91,9 +92,7 @@ function saveHistory(outputDir: string, history: LanguageHistory): void {
 }
 
 function pruneHistory(history: LanguageHistory, retentionDays: number): LanguageHistory {
-  const cutoff = new Date();
-  cutoff.setDate(cutoff.getDate() - retentionDays);
-  const cutoffYmd = cutoff.toISOString().slice(0, 10);
+  const cutoffYmd = shiftYmd(todayYmd(), -retentionDays);
   return {
     entries: history.entries.filter((e) => e.date >= cutoffYmd),
   };
@@ -248,7 +247,7 @@ export function recordBriefPhrase(
     if (!extracted) return;
 
     const history = pruneHistory(loadHistory(outputDir), historyDays);
-    const today = new Date().toISOString().slice(0, 10);
+    const today = todayYmd();
 
     // If today already has an entry, replace it rather than duplicate — the
     // brief may be regenerated within the same day (manual re-run, retry).
