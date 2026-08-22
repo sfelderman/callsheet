@@ -115,7 +115,7 @@ This project must be **thoroughly documented**. When making changes:
 - Run tests: `yarn test` (requires 4GB heap due to ts-jest + ESM + googleapis)
 - Jest + ts-jest with ESM mode (`--experimental-vm-modules`)
 - Mock external APIs (Google, Anthropic, fetch) — never make real API calls in tests
-- Target: 70%+ line coverage
+- Coverage gate: 95% statements / 84% branches / 95% functions / 95% lines, enforced by `jest.config.ts`
 
 ## Project Structure
 

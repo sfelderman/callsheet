@@ -262,12 +262,28 @@ connectors:
   google_calendar:
     enabled: true
     credentials_dir: secrets
-    calendar_ids:
-      - primary
+    credentials_file: credentials.json
     lookahead_days: 7
+    lookback_days: 7
+    accounts:
+      - name: Person 1
+        calendar_ids:
+          - primary
+      - name: Person 2
+        calendar_ids:
+          - primary
 ```
 
-`primary` is your main calendar. To add shared or subscribed calendars, find their IDs in Google Calendar web > Settings > click the calendar > "Integrate calendar" > Calendar ID.
+`primary` is that account's main calendar. To add shared or subscribed calendars, find their IDs in Google Calendar web > Settings > click the calendar > "Integrate calendar" > Calendar ID.
+
+Each account needs its own OAuth token (`yarn auth:gcal <name>`). The `name` is what the brief calls that person, so match it to the corresponding entry in `household`.
+
+`lookback_days` controls how much history is available for the week-in-review and for the per-person event counts. `event_categories` optionally labels recurring kinds of event so the brief can cite a count rather than tallying by hand:
+
+```yaml
+    event_categories:
+      - { label: Lessons, pattern: "lesson" }
+```
 
 ### Gmail
 
@@ -291,8 +307,12 @@ connectors:
   gmail:
     enabled: true
     credentials_dir: secrets
+    credentials_file: credentials.json
     query: "newer_than:2d -category:promotions -category:social"
     max_messages: 25
+    accounts:
+      - name: Person 1
+      - name: Person 2
 ```
 
 The `query` field uses [Gmail search syntax](https://support.google.com/mail/answer/7190).
@@ -403,9 +423,41 @@ Use [ICAO airport codes](https://www.world-airport-codes.com/).
 
 ---
 
-## Step 5: Add household context
+## Step 5: Describe the household
 
-The `context` block in `config.yaml` is what makes Callsheet genuinely useful. This gets injected into Claude's prompt so it can make connections.
+### Who lives here
+
+List everyone the brief is about in `household` — including people who have no
+calendar, inbox or task list of their own:
+
+```yaml
+household:
+  - name: Person 1
+    role: self
+  - name: Person 2
+    role: partner
+  - name: Person 3
+    role: guest
+    notes: Staying with us this year; has no accounts of their own.
+```
+
+This matters more than it looks. Without an entry, the only people the brief
+knows about are the ones with connector accounts, so anyone else is invisible —
+their events get read as belonging to whoever's calendar happens to carry them.
+
+`name` should match the corresponding `accounts[].name` under each connector.
+Where they differ, link them explicitly:
+
+```yaml
+  - name: Person 1
+    calendar_account: p1-personal
+    todoist_account: p1
+```
+
+### What to know about them
+
+The `context` block is free-form and gets injected into Claude's prompt so it
+can make connections.
 
 ```yaml
 context:
@@ -515,6 +567,76 @@ yarn print
 
 ---
 
+## How the brief improves over time
+
+Three mechanisms feed information from one day's brief into the next. All of
+them live under `output/` and none need setting up.
+
+### Memory
+
+After each brief, Claude extracts a handful of facts worth carrying forward —
+ongoing situations, things to follow up on — into
+`output/memory/memory_YYYY-MM-DD.json`. The last seven days are injected into
+the next prompt; older files are pruned automatically. Counts and tallies are
+deliberately excluded, since they are only true on the day they were computed.
+
+Memory is not treated as truth: the prompt tells Claude to prefer today's live
+connector data wherever the two disagree.
+
+### Self-critique
+
+A second, cheaper pass reviews each finished brief against the raw data it was
+built from and writes what it finds to `output/feedback/critique_*.json`. It
+checks for factual errors first — a number that does not match the data, an
+identifier that appears nowhere in it — then for duplication, grouping,
+verbosity and stale items. When the same category recurs on three or more days
+out of seven, it is surfaced to the next brief as a recurring pattern.
+
+This runs after the brief is written, so it improves tomorrow rather than
+today.
+
+### Your own feedback
+
+Create `feedback.md` in the project root (copy `feedback.example.md`) and write
+plain-language notes about what to change. They are injected into every prompt
+until you delete them:
+
+```markdown
+## Active feedback
+
+- Group tasks by theme instead of listing randomly
+- Don't mention weather unless it affects outdoor plans
+```
+
+To re-run the critique against an existing brief without generating a new one:
+
+```bash
+yarn review              # yesterday's brief
+yarn review 2026-08-22   # a specific date
+```
+
+---
+
+## Other configuration
+
+| Key | Default | What it does |
+| --- | --- | --- |
+| `timezone` | `TZ` env, then system | IANA zone for the brief's date, filenames, connector windows and the scheduler. Set it explicitly. |
+| `auto_close_tasks` | `false` | Lets Claude close Todoist tasks that other sources prove are done. Closures are logged and reported in the next brief. |
+| `weekly_review_day` | off | Day name or `0`-`6` for a short week-in-review section at the top of that day's brief. |
+| `vacation` | none | Date ranges where the scheduled run is skipped. Manual runs still work. |
+| `connector_timeout_ms` | `60000` | Per-connector deadline. A connector that hangs past this is abandoned and noted in the brief. |
+
+```yaml
+timezone: America/New_York
+auto_close_tasks: true
+weekly_review_day: saturday
+vacation:
+  - { start: "2026-07-01", end: "2026-07-14" }
+```
+
+---
+
 ## Docker reference
 
 ### Environment variables
@@ -594,12 +716,15 @@ Token budget breakdown:
   Est. output:      ~1,500 tokens
 ```
 
-Rough monthly costs at one brief/day:
+Memory extraction and self-critique always run on Haiku and add roughly $0.03
+per brief regardless of which model writes it.
 
-| Input tokens | Sonnet/month | Opus/month |
+Rough monthly costs at one brief/day, including those two passes:
+
+| Input tokens | Sonnet 5/month | Opus 5/month |
 |---|---|---|
-| ~5K (minimal) | ~$0.60 | ~$4.50 |
-| ~10K (typical) | ~$1.50 | ~$8.00 |
-| ~20K (heavy) | ~$3.00 | ~$15.00 |
+| ~5K (minimal) | ~$1.50 | ~$2.00 |
+| ~10K (typical) | ~$2.30 | ~$3.30 |
+| ~20K (heavy) | ~$3.50 | ~$5.50 |
 
 The biggest cost lever is connector data volume. Home Assistant with all sensors can easily be 15K+ tokens. Filter to specific entities to keep costs down.

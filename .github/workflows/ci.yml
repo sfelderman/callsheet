@@ -93,7 +93,7 @@ jobs:
             md += '| ' + emoji(c.branches) + ' Branches | **' + fmt(c.branches) + '** | \`' + bar(c.branches) + '\` |\n';
             md += '| ' + emoji(c.functions) + ' Functions | **' + fmt(c.functions) + '** | \`' + bar(c.functions) + '\` |\n';
             md += '| ' + emoji(c.statements) + ' Statements | **' + fmt(c.statements) + '** | \`' + bar(c.statements) + '\` |\n';
-            md += '\n> Coverage target: 70% lines\n';
+            md += '\n> Coverage gate: 95% statements / 84% branches / 95% functions / 95% lines\n';
 
             require('fs').writeFileSync('coverage-summary.md', md);
           "

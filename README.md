@@ -89,19 +89,33 @@ Create a file in `src/connectors/`, export a `create` factory function, and regi
 | `src/prompts/system.md` | Claude's instructions — sections, tone, what to flag |
 | `config.yaml > context:` | Household info so Claude makes smarter connections |
 
-### Household context
+### Household
 
-The `context:` block in your config gets injected into Claude's prompt:
+`household:` lists everyone the brief is about — including anyone without a
+calendar, inbox or task list of their own, who would otherwise be invisible to
+it:
+
+```yaml
+household:
+  - name: Person 1
+    role: self
+  - name: Person 2
+    role: partner
+  - name: Person 3
+    role: guest
+    notes: Staying with us this year; no accounts of their own.
+```
+
+`context:` is free-form background, injected into Claude's prompt alongside it:
 
 ```yaml
 context:
-  people: "Alex and Jordan"
-  adhd: "Jordan has ADHD — keep it scannable, flag inbox buildup"
-  work: "Alex is a nurse, 3x12hr shifts. Jordan is remote."
-  hobbies: "Both learning pottery. Alex runs marathons."
+  work: "Person 1 is a nurse, 3x12hr shifts. Person 2 is remote."
+  health: "Person 2 has ADHD — keep it scannable, flag inbox buildup"
+  hobbies: "Both learning pottery. Person 1 runs marathons."
   bills: "Phone plan bills monthly, needs manual renewal next day"
-  travel: "Family trip to Japan, June 1-14. Flag packing under 7 days."
-  deadlines: "Jordan's thesis due April 30. Bar exam July 2026."
+  travel: "Family trip abroad, June 1-14. Flag packing under 7 days."
+  deadlines: "Person 2's thesis due April 30."
 ```
 
 ### The prompt
@@ -167,12 +181,17 @@ callsheet/
 
 ## Cost
 
-At ~2K input + ~1.5K output tokens per brief:
+Each brief makes three calls: the brief itself on your configured model, plus
+memory extraction and self-critique on Haiku. A household running most
+connectors sends roughly 20K input tokens per brief.
 
-| Model | Per brief | Per month |
-|-------|-----------|-----------|
-| Sonnet | ~$0.02 | ~$0.60 |
-| Opus | ~$0.15 | ~$4.50 |
+| Brief model | Per brief | Per month |
+|-------------|-----------|-----------|
+| Sonnet 5 | ~$0.12 | ~$3.50 |
+| Opus 5 | ~$0.18 | ~$5.50 |
+
+Connector data volume is the main lever — the **Usage** page in the dashboard
+shows your actual numbers.
 
 ## Why this exists
 
