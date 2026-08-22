@@ -359,6 +359,52 @@ describe('isWeeklyReviewDay', () => {
   });
 });
 
+describe('extractResponseText', () => {
+  it('returns the text of a normal response', () => {
+    expect(
+      core.extractResponseText({
+        content: [{ type: 'text', text: '{"ok":true}' }],
+        stop_reason: 'end_turn',
+      }),
+    ).toBe('{"ok":true}');
+  });
+
+  it('skips non-text blocks rather than assuming the first is text', () => {
+    expect(
+      core.extractResponseText({
+        content: [
+          { type: 'thinking' },
+          { type: 'text', text: 'part one ' },
+          { type: 'text', text: 'part two' },
+        ],
+        stop_reason: 'end_turn',
+      }),
+    ).toBe('part one part two');
+  });
+
+  it('explains a truncated response instead of returning half a document', () => {
+    expect(() =>
+      core.extractResponseText({
+        content: [{ type: 'text', text: '{"incomp' }],
+        stop_reason: 'max_tokens',
+      }),
+    ).toThrow(/output limit/);
+  });
+
+  it('reports a refusal as such', () => {
+    expect(() => core.extractResponseText({ content: [], stop_reason: 'refusal' })).toThrow(
+      /declined/,
+    );
+  });
+
+  it('reports an empty response with its stop reason', () => {
+    expect(() => core.extractResponseText({ content: [], stop_reason: 'end_turn' })).toThrow(
+      /No text in response \(stop_reason: end_turn\)/,
+    );
+    expect(() => core.extractResponseText({ content: [] })).toThrow(/unknown/);
+  });
+});
+
 describe('usesCalendarDerivedStations', () => {
   const both = {
     connectors: {

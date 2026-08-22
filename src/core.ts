@@ -185,6 +185,38 @@ function withDeadline<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
   });
 }
 
+/**
+ * Pull the text out of a Claude response.
+ *
+ * Indexing `content[0]` assumed the first block is always text, which stops
+ * being true the moment a response leads with anything else, and said nothing
+ * useful when a response came back truncated or declined. `stop_reason` is
+ * checked here so those cases fail with a description of what happened rather
+ * than a parse error further down.
+ */
+export function extractResponseText(response: {
+  content: { type: string; text?: string }[];
+  stop_reason?: string | null;
+}): string {
+  if (response.stop_reason === 'refusal') {
+    throw new Error('Claude declined to answer this request.');
+  }
+
+  const text = response.content
+    .filter((b) => b.type === 'text' && typeof b.text === 'string')
+    .map((b) => b.text)
+    .join('');
+
+  if (!text) {
+    throw new Error(`No text in response (stop_reason: ${response.stop_reason ?? 'unknown'}).`);
+  }
+  if (response.stop_reason === 'max_tokens') {
+    throw new Error('Response hit the output limit and is incomplete — raise max_tokens.');
+  }
+
+  return text;
+}
+
 /** Fetch one connector under a deadline, logging the outcome. */
 function runConnector(
   conn: { name: string; fetch: () => Promise<ConnectorResult> },
@@ -446,7 +478,7 @@ async function generateMemoryInsights(
 
     logUsage(outputDir, model, 'memory', response.usage.input_tokens, response.usage.output_tokens);
 
-    const text = stripJsonCodeFences((response.content[0] as { type: 'text'; text: string }).text);
+    const text = stripJsonCodeFences(extractResponseText(response));
     return JSON.parse(text) as string[];
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
@@ -667,7 +699,7 @@ export async function critiqueBrief(
       response.usage.output_tokens,
     );
 
-    const text = stripJsonCodeFences((response.content[0] as { type: 'text'; text: string }).text);
+    const text = stripJsonCodeFences(extractResponseText(response));
     const issues = JSON.parse(text) as string[];
 
     if (issues.length) {
@@ -787,7 +819,7 @@ async function detectResolvableTasks(
       response.usage.output_tokens,
     );
 
-    const text = stripJsonCodeFences((response.content[0] as { type: 'text'; text: string }).text);
+    const text = stripJsonCodeFences(extractResponseText(response));
     return JSON.parse(text) as AutoCloseRecommendation[];
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
@@ -1139,7 +1171,11 @@ export async function generateBrief(
       () =>
         client.messages.create({
           model,
-          max_tokens: 4096,
+          // Headroom over what a brief actually needs. At the old 4096 a long
+          // day could truncate the JSON, and a truncated brief was
+          // indistinguishable from a failed one by the time it reached the
+          // parser.
+          max_tokens: 8192,
           system: systemPrompt,
           messages: [
             {
@@ -1169,7 +1205,7 @@ export async function generateBrief(
 
     logUsage(outputDir, model, 'brief', response.usage.input_tokens, response.usage.output_tokens);
 
-    const text = stripJsonCodeFences((response.content[0] as { type: 'text'; text: string }).text);
+    const text = stripJsonCodeFences(extractResponseText(response));
     brief = JSON.parse(text) as Brief;
 
     // The heading is a fact, not a judgement call, so it is set here rather
