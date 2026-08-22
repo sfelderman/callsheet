@@ -1,5 +1,109 @@
 # callsheet
 
+## 1.5.0
+
+### Minor Changes
+
+- 5ba2fbf: Read airports off the calendar instead of a list that goes stale.
+
+  Aviation weather was fetched for whatever stations were configured once and
+  never revisited, so the brief reported conditions for fields the household no
+  longer flew from while the calendar plainly said where the flying was
+  happening. The calendar connector now runs first when aviation weather is
+  enabled, and any airport named in today's or the coming week's events is added
+  to the weather request. Configured stations are still honoured — they're the
+  home fields — and the behaviour can be turned off with `derive_stations:
+false`.
+
+  Identifiers are read literally from event text; `airport_aliases` maps place
+  names to stations for fields whose events never spell out the identifier, and
+  `activity_pattern` narrows the scan to events that actually imply flying.
+
+  The hardcoded fallback that pointed the area forecast at one specific region
+  when no ICAO station was configured is gone — the forecast is skipped instead.
+  Validation now warns when a station looks like an IATA code, which returns no
+  data rather than an error.
+
+- b1fda2e: Make the brief accountable for the facts it states.
+
+  A new `household` config section lists everyone the brief is about, including
+  people who have no calendar, inbox or task list of their own. Previously the
+  only people the brief knew were the ones with connector accounts, so a member
+  without any was invisible and their events read as belonging to whoever's
+  calendar carried them.
+
+  The brief's date is now computed rather than written by the model, which had
+  been pairing the right weekday with the next day's date on roughly one brief in
+  six. A new top-level `timezone` setting anchors that date, the output
+  filenames, the connector query windows and the scheduler to one zone, instead
+  of filenames following UTC while the visible dates followed somewhere else.
+
+  The prompt gains two rules: counts must be read from the structured
+  per-person aggregates rather than tallied by hand, and airport or station
+  identifiers must be copied from the payload rather than recalled. The
+  self-critique gains a factual-accuracy category so a brief that reads well but
+  states a wrong number is caught. Memory extraction no longer truncates
+  mid-array — its output limit was too small, so most days' insights failed to
+  parse and were silently dropped — and it no longer records counts, which go
+  stale the day after they are written.
+
+- aacbc77: Calendar events now carry per-person attribution and pre-computed counts.
+
+  Each event lists the household member(s) whose calendar it came from, and an
+  event appearing on two calendars is merged into one shared event that keeps
+  both names rather than being deduplicated down to one person. The connector
+  also emits an `aggregates` block with per-person totals for the recent, today
+  and upcoming windows, plus optional per-category tallies driven by a new
+  `event_categories` config option, so the brief cites counts instead of
+  computing them.
+
+  Alongside that: results are paginated (previously capped at one page, silently
+  dropping events on busy calendars), per-calendar fetch failures are surfaced in
+  the payload instead of only logged, query windows are bounded in the configured
+  timezone rather than the process one, and `lookback_days` now defaults to 7 so
+  past events are available on every run rather than only on the weekly review
+  day.
+
+### Patch Changes
+
+- 25bdbc6: Give the brief enough token budget for models that reason before answering.
+
+  Current models spend part of the response budget thinking, so the previous
+  ceiling was consumed before the brief itself was written and every run ended
+  in a truncated response.
+
+- 1f51c34: Let the self-critique see the whole payload before it calls something wrong.
+
+  The reviewer was shown a small slice of the day's data, so it reported
+  anything past the cut as unsupported — and those false findings fed straight
+  into the next day's prompt as faults to correct. It now receives the full
+  payload, and is told that the recent and upcoming windows describe different
+  periods, which was the other source of spurious findings.
+
+- 987cb9b: Bump dev dependencies (eslint, prettier, jest, ts-jest, esbuild, @changesets/cli) and remove three redundant type assertions that the updated typescript-eslint now flags as unnecessary. Type-only change with no runtime effect.
+- ea615ff: Refresh the model lineup and fix the usage pricing table.
+
+  The shipped default was a model that has since been retired, and the setup
+  script, web wizard and setup guide all still offered it. They now offer the
+  current Sonnet and Opus.
+
+  The pricing table priced Opus at three times its actual rate and had no entry
+  for any current model, so an unrecognised model was silently billed at Sonnet
+  rates. Rates are corrected, current models are listed, and an unlisted model is
+  now estimated from its family with a note in the log rather than assumed.
+
+- bf462b0: Upgrade the Anthropic SDK and stop mishandling unusual responses.
+
+  The SDK was around eighteen months behind. Reading the response text assumed
+  the first content block is always text and ignored `stop_reason` entirely, so
+  a truncated or declined response surfaced as a JSON parse error — or, for the
+  brief itself, as a generic "generation failed" page that said nothing about
+  what actually went wrong. Text is now collected from all text blocks, and
+  truncation and refusals are reported as themselves.
+
+  The brief's output limit is also raised, since the previous ceiling was close
+  enough to a long day's output to truncate it.
+
 ## 1.4.0
 
 ### Minor Changes
